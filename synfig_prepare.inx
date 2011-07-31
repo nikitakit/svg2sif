@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+    <_name>Prepare for Export</_name>
+    <id>org.synfig.svg.prepare</id>
+	<dependency type="executable" location="extensions">synfig_prepare.py</dependency>
+	<dependency type="executable" location="extensions">inkex.py</dependency>
+    <effect>
+	<object-type>all</object-type>
+	<effects-menu>
+		<submenu _name="Synfig"/>
+	</effects-menu>
+	</effect>
+    <script>
+        <command reldir="extensions"
+        interpreter="python">synfig_prepare.py</command>
+    </script>
+</inkscape-extension>

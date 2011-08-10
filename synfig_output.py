@@ -756,6 +756,18 @@ def get_color(style, color_attrib, *opacity_attribs):
             color[3] = color[3] * float(style[opacity])
     return color
 
+def get_width(style, width_attrib, mtx):
+    if width_attrib in style.keys():
+        width = get_dimension(style[width_attrib])
+    else:
+        return 0
+
+    # Calculate average scale factor
+    area_scale_factor = mtx[0][0]*mtx[1][1] - mtx[0][1]*mtx[1][0]
+    linear_scale_factor = math.sqrt(abs(area_scale_factor))
+
+    return width*linear_scale_factor/sif.kux
+    
 
 ###### Main Class #########################################
 class SynfigExport(SynfigPrep):
@@ -900,7 +912,7 @@ class SynfigExport(SynfigPrep):
                 layer=d.create_layer("outline",node_id,{
                         "bline": bline,
                         "color": color,
-                        "width": get_dimension(style.setdefault("stroke-width","1px")) / sif.kux,
+                        "width": get_width(style,"stroke-width",mtx),
                         "sharp_cusps": True if style.setdefault("stroke-linejoin","miter")=="miter" else False,
                         "round_tip[0]": False if style.setdefault("stroke-linecap","butt")=="butt" else True,
                         "round_tip[1]": False if style.setdefault("stroke-linecap","butt")=="butt" else True

@@ -20,6 +20,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 """
 
+# Constants
+kux = 60.0 # Number of SVG units (pixels) per Synfig "unit"
+gamma = 2.2
+
 # Layer parameters, types, and default values
 
 layers={}

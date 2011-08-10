@@ -31,7 +31,6 @@ import synfig_fileformat as sif
 class SynfigDocument():
     """A synfig document, with commands for adding layers and layer parameters"""
     def __init__(self, width=1024, height=768, name="Synfig Animation 1"):
-        self.kux=60.0
         self.guid=0
         self.root_canvas = etree.fromstring(
             """
@@ -62,10 +61,10 @@ view-box="0 0 0 0"
 
     def _update_viewbox(self):
         attr_viewbox="%f %f %f %f" % (
-             -self.width/2.0/self.kux,
-              self.height/2.0/self.kux,
-              self.width/2.0/self.kux,
-             -self.height/2.0/self.kux
+             -self.width/2.0/sif.kux,
+              self.height/2.0/sif.kux,
+              self.width/2.0/sif.kux,
+             -self.height/2.0/sif.kux
              )
         self.root_canvas.set("view-box",attr_viewbox)
 
@@ -100,10 +99,10 @@ view-box="0 0 0 0"
         return str(self.guid)
 
     def distance_svg2sif(self,distance):
-        return distance/self.kux
+        return distance/sif.kux
 
     def distance_sif2svg(self,distance):
-        return distance*self.kux
+        return distance*sif.kux
 
     def coor_svg2sif(self,vector):
         x = vector[0]
@@ -111,14 +110,14 @@ view-box="0 0 0 0"
 
         x-=self.width/2.0
         y-=self.height/2.0
-        x/=self.kux
-        y/=self.kux
+        x/=sif.kux
+        y/=sif.kux
 
         return [x,y]
 
     def coor_sif2svg(self,vector):
-        x=vector[0] * self.kux + self.width/2.0
-        y=vector[1] * self.kux + self.height/2.0
+        x=vector[0] * sif.kux + self.width/2.0
+        y=vector[1] * sif.kux + self.height/2.0
 
         y=self.height - y
 
@@ -164,35 +163,6 @@ view-box="0 0 0 0"
 
     def bline_coor_sif2svg(self,b):
         self.list_coor_sif2svg(b["points"])
-
-    def get_dimension(self, s="1024"):
-        if s == "":
-            return 0
-        try:
-            last=int(s[-1])
-        except:
-            last=None
-
-        if type(last) == int:
-            return float(s)
-        elif s[-1]=="%":
-            return 1024
-        elif s[-2:]=="px":
-            return float(s[:-2])
-        elif s[-2:]=="pt":
-            return float(s[:-2])*1.25
-        elif s[-2:]=="em":
-            return float(s[:-2])*16
-        elif s[-2:]=="mm":
-            return float(s[:-2])*3.54
-        elif s[-2:]=="pc":
-            return float(s[:-2])*15
-        elif s[-2:]=="cm":
-            return float(s[:-2])*35.43
-        elif s[-2:]=="in":
-            return float(s[:-2])*90
-        else:
-            return 1024
 
     ### XML Builders -- private
 
@@ -743,6 +713,35 @@ def path_to_bline_list(path_d,nodetypes=None,transform=None):
 
 ### Style related
 
+def get_dimension(s="1024"):
+    if s == "":
+        return 0
+    try:
+        last=int(s[-1])
+    except:
+        last=None
+
+    if type(last) == int:
+        return float(s)
+    elif s[-1]=="%":
+        return 1024
+    elif s[-2:]=="px":
+        return float(s[:-2])
+    elif s[-2:]=="pt":
+        return float(s[:-2])*1.25
+    elif s[-2:]=="em":
+        return float(s[:-2])*16
+    elif s[-2:]=="mm":
+        return float(s[:-2])*3.54
+    elif s[-2:]=="pc":
+        return float(s[:-2])*15
+    elif s[-2:]=="cm":
+        return float(s[:-2])*35.43
+    elif s[-2:]=="in":
+        return float(s[:-2])*90
+    else:
+        return 1024
+
 def get_color(style, color_attrib, *opacity_attribs):
     if color_attrib in style.keys():
         c = simplestyle.parseColor(style[color_attrib])
@@ -750,8 +749,7 @@ def get_color(style, color_attrib, *opacity_attribs):
         c = (0,0,0)
 
     # Convert color scales and adjust gamma
-    #  (Synfig's gamma is 2.2)
-    color = [pow(c[0]/255.0,2.2), pow(c[1]/255.0,2.2), pow(c[2]/255.0,2.2), 1.0]
+    color = [pow(c[0]/255.0,sif.gamma), pow(c[1]/255.0,sif.gamma), pow(c[2]/255.0,sif.gamma), 1.0]
 
     for opacity in opacity_attribs:
         if opacity in style.keys():
@@ -902,7 +900,7 @@ class SynfigExport(SynfigPrep):
                 layer=d.create_layer("outline",node_id,{
                         "bline": bline,
                         "color": color,
-                        "width": d.get_dimension(style.setdefault("stroke-width","1px")) / d.kux,
+                        "width": get_dimension(style.setdefault("stroke-width","1px")) / sif.kux,
                         "sharp_cusps": True if style.setdefault("stroke-linejoin","miter")=="miter" else False,
                         "round_tip[0]": False if style.setdefault("stroke-linecap","butt")=="butt" else True,
                         "round_tip[1]": False if style.setdefault("stroke-linecap","butt")=="butt" else True

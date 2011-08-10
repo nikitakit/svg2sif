@@ -742,7 +742,7 @@ def get_dimension(s="1024"):
     else:
         return 1024
 
-def get_color(style, color_attrib, *opacity_attribs):
+def extract_color(style, color_attrib, *opacity_attribs):
     if color_attrib in style.keys():
         c = simplestyle.parseColor(style[color_attrib])
     else:
@@ -756,7 +756,7 @@ def get_color(style, color_attrib, *opacity_attribs):
             color[3] = color[3] * float(style[opacity])
     return color
 
-def get_width(style, width_attrib, mtx):
+def extract_width(style, width_attrib, mtx):
     if width_attrib in style.keys():
         width = get_dimension(style[width_attrib])
     else:
@@ -864,7 +864,7 @@ class SynfigExport(SynfigPrep):
             if stop.tag == addNS("stop", "svg"):
                 offset = float(stop.get("offset"))
                 style=simplestyle.parseStyle(stop.get("style",""))
-                stops[offset] = get_color(style, "stop-color", "stop-opacity")
+                stops[offset] = extract_color(style, "stop-color", "stop-opacity")
             else:
                 raise Exception, "Child of gradient is not a stop"
 
@@ -887,7 +887,7 @@ class SynfigExport(SynfigPrep):
                     # Draw the shape in black, then overlay it with the gradient or pattern
                     color = [0,0,0,1]
                 else:
-                    color = get_color(style, "fill", "fill-opacity", "opacity")
+                    color = extract_color(style, "fill", "fill-opacity", "opacity")
 
                 layer=d.create_layer("region",node_id,{
                         "bline": bline,
@@ -907,12 +907,12 @@ class SynfigExport(SynfigPrep):
                     # Draw the shape in black, then overlay it with the gradient or pattern
                     color = [0,0,0,1]
                 else:
-                    color = get_color(style, "stroke", "stroke-opacity", "opacity")
+                    color = extract_color(style, "stroke", "stroke-opacity", "opacity")
 
                 layer=d.create_layer("outline",node_id,{
                         "bline": bline,
                         "color": color,
-                        "width": get_width(style,"stroke-width",mtx),
+                        "width": extract_width(style,"stroke-width",mtx),
                         "sharp_cusps": True if style.setdefault("stroke-linejoin","miter")=="miter" else False,
                         "round_tip[0]": False if style.setdefault("stroke-linecap","butt")=="butt" else True,
                         "round_tip[1]": False if style.setdefault("stroke-linecap","butt")=="butt" else True

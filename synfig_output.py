@@ -587,7 +587,7 @@ view-box="0 0 0 0"
 
 ### Path related
 
-def path_to_bline_list(path_d,nodetypes=None,transform=None):
+def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]):
     """
     Converts a path to a BLine List
 
@@ -604,17 +604,6 @@ def path_to_bline_list(path_d,nodetypes=None,transform=None):
     }
     """
 
-    # Apply the transformation, if any
-    if transform is not None:
-        d = "" + path_d
-        m = simpletransform.parseTransform(transform)
-        p = cubicsuperpath.parsePath(path_d)
-        simpletransform.applyTransformToPath(m,p)
-        path_d=cubicsuperpath.formatPath(p)
-
-    # Prepare bline_list
-    bline_list = []
-
     # Parse the path
     path=simplepath.parsePath(path_d)
 
@@ -627,87 +616,102 @@ def path_to_bline_list(path_d,nodetypes=None,transform=None):
     for _ in range(len(path)):
         nt+="c"
 
-    # Determine the subpaths of the current path, and whether they loop
-    subpaths=[]
-    for cmd, _ in path:
-        if cmd=="M":
-            subpaths.append({"nodetypes":nt[0], "loop":False})
+    # Create bline list: first pass (split up subpaths)
+
+    # bline_list := [bline, bline, ...]
+    # bline := {"nodetypes":string,
+    #           "simple":[ [cmd,params], ...],
+    #           "loop":True/False,
+    #          }
+
+    bline_list=[]
+    for s in path:
+        cmd, params = s
+        if cmd!="M" and (bline_list==[] or bline_list[-1]["simple"]==[]):
+            raise AssertionError, "Bad path data: subpath doesn't start with moveto"
+        elif cmd=="M":
+            # Start a new subpath
+            bline_list.append({"nodetypes":"", "loop":False,"simple":[]})
+            # Append [cmd,params] to the current subpath
+            bline_list[-1]["simple"].append(s)
+
+            # Append a nodetype
+            bline_list[-1]["nodetypes"] = bline_list[-1]["nodetypes"] + nt[0]
             nt=nt[1:]
         elif cmd=="Z":
-            if subpaths==[]:
-                raise AssertionError, "Bad path data: doesn't start with moveto"
-            subpaths[-1]["nodetypes"] = subpaths[-1]["nodetypes"]
+            # Loop the subpath
+            bline_list[-1]["loop"] = True
 
-            subpaths[-1]["loop"] = True
+            # Append [cmd,params] to the current subpath
+            bline_list[-1]["simple"].append(s)
+
+            # Don't append a nodetype
         else:
-            if subpaths==[]:
-                raise AssertionError, "Bad path data: doesn't start with moveto"
-            subpaths[-1]["nodetypes"] = subpaths[-1]["nodetypes"] + nt[0]
+            # Append [cmd,params] to the current subpath
+            bline_list[-1]["simple"].append(s)
+
+            # Append a nodetype
+            bline_list[-1]["nodetypes"] = bline_list[-1]["nodetypes"] + nt[0]
             nt=nt[1:]
 
-    # Convert path to only use cubic paths
-    # cubic superpath := [subcsp, subcsp, ...]
-    # subcsp := [point, point, ...]
-    # point := [ [tg1x, tg1y], [x,y], [tg2x, tg2y] ]
-    csp=cubicsuperpath.CubicSuperPath(path)
+    # Create bline list: second pass (finilize each subpath)
+    for bline in bline_list:
+        # Create cubic representation of path
+        csp=cubicsuperpath.CubicSuperPath(bline["simple"])
 
-    if len(csp) != len(subpaths):
-        raise AssertionError, "Error: number of subpaths doesn't match"
+        # Apply the transformation, if any
+        if mtx != [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]:
+            simpletransform.applyTransformToPath(mtx,csp)
 
-    for i in range(len(subpaths)):
-        subcsp=csp[i]
-        subpath=subpaths[i]
+        # Initialize "points" with the current subpath
+        bline["points"] = csp[0]
 
-        # Add a link_tangents flag where necessary
-        l = len(subpath["nodetypes"])
-        for j in range(len(subcsp)):
+        # Append split value to each point
+        l = len(bline["nodetypes"])
+        for j in range(len(bline["points"])):
             if j>l:
-                raise AssertionError, "Error: Nodetypes too short: nt=%s subcsp=%s" % (subpath["nodetypes"], subcsp)
+                raise AssertionError, "Error: Nodetypes too short: nt=%s points=%s" % (bline["nodetypes"], bline["points"])
             elif j==l:
                 # Extra element due to looping
                 # (will be removed)
-                subcsp[j].append(True)
-            elif subpath["nodetypes"][j]=="z":
-                subcsp[j].append(False)
+                bline["points"][j].append(True)
+            elif bline["nodetypes"][j]=="z":
+                bline["points"][j].append(False)
             else:
-                subcsp[j].append(True)
+                bline["points"][j].append(True)
 
-        # If a looping subpath, fix the endpoints
-        if subpath["loop"] == True:
-            first=subcsp[0]
-            last=subcsp[-1]
-            penultimate=subcsp[-2]
+        # If a looping bline, fix the endpoints
+        if bline["loop"] == True:
+            first=bline["points"][0]
+            last=bline["points"][-1]
+            penultimate=bline["points"][-2]
 
             if first[1] == penultimate[1]:
                 if last[0] == last[1] == last[2]:
-                    # Throw away the last vertex of subcsp
-                    subcsp=subcsp[:-1]
-                    last=subcsp[-1]
+                    # Throw away the last vertex
+                    bline["points"]=bline["points"][:-1]
+                    last=bline["points"][-1]
 
             if first[1] == last[1]:
                 if first[0] == first[1] == last[1] == last[2]:
                     # Merge the tangents of the endpoints
                     first[0] = last[0]
                     # Throw away the last element
-                    subcsp=subcsp[:-1]
+                    bline["points"]=bline["points"][:-1]
 
-                    # Update subcsp
-                    subcsp[0]=first
+                    # Guard against one-point paths
+                    #   (e.g. "M 1 1 Z")
+                    if len(bline["points"]) > 1:
+                        # Update points
+                        bline["points"][0]=first
                 else:
                     raise AssertionError, "Tangents don't match"
             else:
                 raise AssertionError, "Endpoints don't match"
-        # Update csp (not strictly needed)
-        csp[i]=subcsp
 
-        # Create a bline for this curve
-        bline = {
-            "points"    : subcsp,
-            "loop"      : subpath["loop"]
-            }
-
-        # Append the bline to our list
-        bline_list.append(bline)
+        # Remove extra attributes
+        del bline["simple"]
+        del bline["nodetypes"]
 
     return bline_list
 
@@ -877,7 +881,7 @@ class SynfigExport(SynfigPrep):
         style=simplestyle.parseStyle(node.get("style",""))
         mtx = simpletransform.parseTransform(node.get("transform"))
 
-        blines = path_to_bline_list(node.get("d"),node.get(addNS("nodetypes","sodipodi")),node.get("transform"))
+        blines = path_to_bline_list(node.get("d"),node.get(addNS("nodetypes","sodipodi")),mtx)
         for bline in blines:
             d.bline_coor_svg2sif(bline)
 

@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# svg2sif testing script (Linux only)
+# Copyright (c) 2011 Nikita Kitaev
+#
+# This package is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 2 of
+# the License, or (at your option) any later version.
+#
+# This package is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+
+# Usage: svg2sif_compare [files]
+
+if [ "x$1" = "x" ]; then
+	echo "Usage: svg2sif_compare [files]"
+	exit
+fi
+
+error_exit()
+{
+	echo "ERROR: $@"
+	exit 1
+}
+
+# Test that everything needed is installed
+if ! which inkscape >/dev/null; then error_exit "Inkscape not found"; fi 
+if ! which synfig >/dev/null; then error_exit "Synfig not found"; fi 
+if ! which convert >/dev/null; then error_exit "Imagemagick not found"; fi 
+
+
+# Define svg2sif
+
+SYNFIG_OUTPUT_PY=""
+
+if [ -f "synfig_output.py" ]; then
+	export PYTHONPATH="$PYTHONPATH:`inkscape --extension-directory`"
+	SYNFIG_OUTPUT_PY="synfig_output.py"
+fi
+
+if [ -f "`inkscape --extension-directory`/synfig_output.py" ]; then
+	export PYTHONPATH="$PYTHONPATH:`inkscape --extension-directory`"
+	SYNFIG_OUTPUT_PY="`inkscape --extension-directory`/synfig_output.py"
+fi
+
+if [ -f "$HOME/.config/inkscape/extensions/synfig_output.py" ]; then
+	export PYTHONPATH="$PYTHONPATH:`inkscape --extension-directory`:$HOME/.config/inkscape/extensions"
+	SYNFIG_OUTPUT_PY="$HOME/.config/inkscape/extensions/synfig_output.py"
+fi
+
+[ "x$SYNFIG_OUTPUT_PY" = "x" ] && error_exit "synfig_output.py not found"
+
+svg2sif()
+{
+	python "$SYNFIG_OUTPUT_PY" "$1" >"$2"
+}
+
+# Generate comparison files
+
+for arg in "$@"
+do
+	[ "x$arg" = "x" ] && break
+
+	dir=`dirname "$arg"`
+	file=`basename "$arg" .svg`
+
+	[ ! -f "$dir/$file.svg" ] && error_exit "$dir/$file.svg does not exist"
+
+	echo "===== Converting $file.svg to sif ====="
+	svg2sif "$dir/$file.svg" "$dir/$file.sif"
+
+	[ ! -s "$dir/$file.sif" ] && error_exit "SVG to SIF conversion failed"
+
+	synfig --list-canvases "$dir/$file.sif" >/dev/null || error_exit "Synfig cannot load $file.sif "
+
+	echo "===== Rendering Comparison ====="
+	synfig "$dir/$file.sif" -t png -Q 1 --dpi 90 -o "$dir/$file.synfig.png" 2>/dev/null || error_exit "Synfig render failed"
+
+	inkscape -e "$dir/$file.inkscape.png" -d 90 "$dir/$file.svg" >/dev/null || error_exit "Inkscape render failed"
+
+	convert "$dir/$file.synfig.png" "$dir/$file.inkscape.png" +append "$dir/$file-compare.png" || error_exit "Combining PNG renders failed"
+
+	echo "===== Done ====="
+	echo
+
+	[ -f "$dir/$file.sif" ] && rm "$dir/$file.sif"
+	[ -f "$dir/$file.synfig.png" ] && rm "$dir/$file.synfig.png"
+	[ -f "$dir/$file.inkscape.png" ] && rm "$dir/$file.inkscape.png"
+
+	shift
+done
+
+
+

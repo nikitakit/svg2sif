@@ -16,7 +16,9 @@
 # Usage: svg2sif_compare [files]
 
 if [ "x$1" = "x" ]; then
-	echo "Usage: svg2sif_compare [files]"
+	echo "Usage: svg2sif_compare [-k] [files]"
+	echo
+	echo "  -k: Don't delete sif files when done"
 	exit
 fi
 
@@ -60,6 +62,13 @@ svg2sif()
 
 # Generate comparison files
 
+if [ "$1" = "-k" ]; then
+	DELETE_SIF_FILES=0
+	shift
+else
+	DELETE_SIF_FILES=1
+fi
+
 for arg in "$@"
 do
 	[ "x$arg" = "x" ] && break
@@ -86,7 +95,7 @@ do
 	echo "===== Done ====="
 	echo
 
-	[ -f "$dir/$file.sif" ] && rm "$dir/$file.sif"
+	[ "$DELETE_SIF_FILES" = "1" ] && [ -f "$dir/$file.sif" ] && rm "$dir/$file.sif"
 	[ -f "$dir/$file.synfig.png" ] && rm "$dir/$file.synfig.png"
 	[ -f "$dir/$file.inkscape.png" ] && rm "$dir/$file.inkscape.png"
 

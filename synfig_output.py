@@ -617,68 +617,95 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
         nt+="c"
 
     # Create bline list: first pass (split up subpaths)
+    #     borrows code from cubicsuperpath.py
 
     # bline_list := [bline, bline, ...]
-    # bline := {"nodetypes":string,
-    #           "simple":[ [cmd,params], ...],
+    # bline := {
+    #           "points":[vertex, vertex, ...],
     #           "loop":True/False,
     #          }
 
     bline_list=[]
+
+    subpathstart = []
+    last = []
+    lastctrl = []
+    lastsplit=True
     for s in path:
         cmd, params = s
-        if cmd!="M" and (bline_list==[] or bline_list[-1]["simple"]==[]):
-            raise AssertionError, "Bad path data: subpath doesn't start with moveto"
+        if cmd!="M" and bline_list==[]:
+            raise AssertionError, "Bad path data: path doesn't start with moveto, %s, %s" % (s, path)
         elif cmd=="M":
+            # Add previous point to subpath
+            if last:
+                bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
             # Start a new subpath
-            bline_list.append({"nodetypes":"", "loop":False,"simple":[]})
-            # Append [cmd,params] to the current subpath
-            bline_list[-1]["simple"].append(s)
-
-            # Append a nodetype
-            bline_list[-1]["nodetypes"] = bline_list[-1]["nodetypes"] + nt[0]
+            bline_list.append({"nodetypes":"", "loop":False,"points":[]})
+            # Save coordinates of this point
+            subpathstart =  params[:]
+            last=params[:]
+            lastctrl = params[:]
+            lastsplit = False if nt[0]=="z" else True
             nt=nt[1:]
+        elif cmd == 'L':
+            bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
+            last = params[:]
+            lastctrl = params[:]
+            lastsplit = False if nt[0]=="z" else True
+            nt=nt[1:]
+        elif cmd == 'C':
+            bline_list[-1]["points"].append([lastctrl[:],last[:],params[:2], lastsplit])
+            last = params[-2:]
+            lastctrl = params[2:4]
+            lastsplit = False if nt[0]=="z" else True
+            nt=nt[1:]
+        elif cmd == 'Q':
+            q0=last[:]
+            q1=params[0:2]
+            q2=params[2:4]
+            x0=     q0[0]
+            x1=1./3*q0[0]+2./3*q1[0]
+            x2=           2./3*q1[0]+1./3*q2[0]
+            x3=                           q2[0]
+            y0=     q0[1]
+            y1=1./3*q0[1]+2./3*q1[1]
+            y2=           2./3*q1[1]+1./3*q2[1]
+            y3=                           q2[1]
+            bline_list[-1]["points"].append([lastctrl[:],[x0,y0],[x1,y1], lastsplit])
+            last = [x3,y3]
+            lastctrl = [x2,y2]
+            lastsplit = False if nt[0]=="z" else True
+            nt=nt[1:]
+        elif cmd == 'A':
+            arcp=cubicsuperpath.ArcToPath(last[:],params[:])
+            arcp[ 0][0]=lastctrl[:]
+            last=arcp[-1][1]
+            lastctrl = arcp[-1][0]
+            lastsplit = False if nt[0]=="z" else True
+            nt=nt[1:]
+            for el in arcp[:-1]:
+                el.append(True)
+                bline_list[-1]["points"].append(el)
         elif cmd=="Z":
+            bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
+            last = subpathstart[:]
+            lastctrl = subpathstart[:]
+            lastsplit = True
+
             # Loop the subpath
             bline_list[-1]["loop"] = True
 
-            # Append [cmd,params] to the current subpath
-            bline_list[-1]["simple"].append(s)
-
-            # Don't append a nodetype
-        else:
-            # Append [cmd,params] to the current subpath
-            bline_list[-1]["simple"].append(s)
-
-            # Append a nodetype
-            bline_list[-1]["nodetypes"] = bline_list[-1]["nodetypes"] + nt[0]
-            nt=nt[1:]
+    # Append final superpoint
+    bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
 
     # Create bline list: second pass (finilize each subpath)
     for bline in bline_list:
-        # Create cubic representation of path
-        csp=cubicsuperpath.CubicSuperPath(bline["simple"])
-
         # Apply the transformation, if any
         if mtx != [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]:
-            simpletransform.applyTransformToPath(mtx,csp)
-
-        # Initialize "points" with the current subpath
-        bline["points"] = csp[0]
-
-        # Append split value to each point
-        l = len(bline["nodetypes"])
-        for j in range(len(bline["points"])):
-            if j>l:
-                raise AssertionError, "Error: Nodetypes too short: nt=%s points=%s" % (bline["nodetypes"], bline["points"])
-            elif j==l:
-                # Extra element due to looping
-                # (will be removed)
-                bline["points"][j].append(True)
-            elif bline["nodetypes"][j]=="z":
-                bline["points"][j].append(False)
-            else:
-                bline["points"][j].append(True)
+            for vertex in bline["points"]:
+                for pt in vertex:
+                    if type(pt) != bool:
+                        simpletransform.applyTransformToPoint(mtx,pt)
 
         # If a looping bline, fix the endpoints
         if bline["loop"] == True:
@@ -708,10 +735,6 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
                     raise AssertionError, "Tangents don't match"
             else:
                 raise AssertionError, "Endpoints don't match"
-
-        # Remove extra attributes
-        del bline["simple"]
-        del bline["nodetypes"]
 
     return bline_list
 

@@ -25,7 +25,6 @@ import inkex
 from synfig_prepare import *
 import synfig_fileformat as sif
 
-
 ###### Utility Classes ####################################
 
 class SynfigDocument():
@@ -687,16 +686,27 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
                 el.append(True)
                 bline_list[-1]["points"].append(el)
         elif cmd=="Z":
-            bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
-            last = subpathstart[:]
-            lastctrl = subpathstart[:]
-            lastsplit = True
+
+            if last==subpathstart:
+                # If we are back to the original position
+                # merge our tangent into the first point
+                bline_list[-1]["points"][0][0]=lastctrl[:]
+            else:
+                # Otherwise draw a line to the starting point
+                bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
+
+            # Clear the variables (no more points need to be added)
+            last=[]
+            lastctrl=[]
+            lastsplit=True
 
             # Loop the subpath
             bline_list[-1]["loop"] = True
 
-    # Append final superpoint
-    bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
+            
+    # Append final superpoint, if needed
+    if last:
+        bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
 
     # Create bline list: second pass (finilize each subpath)
     for bline in bline_list:
@@ -706,35 +716,6 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
                 for pt in vertex:
                     if type(pt) != bool:
                         simpletransform.applyTransformToPoint(mtx,pt)
-
-        # If a looping bline, fix the endpoints
-        if bline["loop"] == True:
-            first=bline["points"][0]
-            last=bline["points"][-1]
-            penultimate=bline["points"][-2]
-
-            if first[1] == penultimate[1]:
-                if last[0] == last[1] == last[2]:
-                    # Throw away the last vertex
-                    bline["points"]=bline["points"][:-1]
-                    last=bline["points"][-1]
-
-            if first[1] == last[1]:
-                if first[0] == first[1] == last[1] == last[2]:
-                    # Merge the tangents of the endpoints
-                    first[0] = last[0]
-                    # Throw away the last element
-                    bline["points"]=bline["points"][:-1]
-
-                    # Guard against one-point paths
-                    #   (e.g. "M 1 1 Z")
-                    if len(bline["points"]) > 1:
-                        # Update points
-                        bline["points"][0]=first
-                else:
-                    raise AssertionError, "Tangents don't match"
-            else:
-                raise AssertionError, "Endpoints don't match"
 
     return bline_list
 

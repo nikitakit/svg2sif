@@ -615,7 +615,7 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
     for _ in range(len(path)):
         nt+="c"
 
-    # Create bline list: first pass (split up subpaths)
+    # Create bline list
     #     borrows code from cubicsuperpath.py
 
     # bline_list := [bline, bline, ...]
@@ -708,10 +708,9 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
     if last:
         bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
 
-    # Create bline list: second pass (finilize each subpath)
-    for bline in bline_list:
-        # Apply the transformation, if any
-        if mtx != [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]:
+    # Apply the transformation
+    if mtx != [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]:
+        for bline in bline_list:
             for vertex in bline["points"]:
                 for pt in vertex:
                     if type(pt) != bool:

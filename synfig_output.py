@@ -686,8 +686,11 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
                 el.append(True)
                 bline_list[-1]["points"].append(el)
         elif cmd=="Z":
-
-            if last==subpathstart:
+            if len(bline_list[-1]["points"]) == 0:
+                # If the path "loops" after only one point
+                #  e.g. "M 0 0 Z"
+                bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], False])
+            elif last==subpathstart:
                 # If we are back to the original position
                 # merge our tangent into the first point
                 bline_list[-1]["points"][0][0]=lastctrl[:]

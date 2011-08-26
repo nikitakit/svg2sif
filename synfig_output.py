@@ -891,7 +891,7 @@ class SynfigExport(SynfigPrep):
         for bline in blines:
             d.bline_coor_svg2sif(bline)
 
-            if style.setdefault("fill", "none")  != "none":
+            if style.setdefault("fill", "#000000")  != "none":
                 if style["fill"].startswith("url"):
                     # Gradient or pattern
                     # Draw the shape in black, then overlay it with the gradient or pattern

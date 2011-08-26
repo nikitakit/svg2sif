@@ -226,7 +226,7 @@ def fuse_subpaths(path_node):
 def split_fill_and_stroke(path_node):
     style=simplestyle.parseStyle(path_node.get("style",""))
     # If there is only stroke or only fill, don't split anything
-    if "fill" not in style.keys() or style["fill"] == "none":
+    if "fill" in style.keys() and style["fill"] == "none":
         if "stroke" not in style.keys() or style["stroke"] == "none":
             return [None, None] # Path has neither stroke nor fill
         else:
@@ -276,7 +276,7 @@ def split_fill_and_stroke(path_node):
     # Next split apart the style attribute
     style_group={}
     style_fill={"stroke":"none"}
-    style_stroke={"fill":"none"}
+    style_stroke={"fill":"#000000"}
 
     for key in style.keys():
         if key.startswith("fill"):

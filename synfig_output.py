@@ -789,8 +789,8 @@ class SynfigExport(SynfigPrep):
         SynfigPrep.effect(self)
 
         svg = self.document.getroot()
-        width = float(svg.get("width",1024))
-        height = float(svg.get("height",768))
+        width = get_dimension(svg.get("width",1024))
+        height = get_dimension(svg.get("height",768))
 
         title=svg.xpath("svg:title",namespaces=NSS)
         if len(title) == 1:

@@ -136,6 +136,7 @@ class SynfigExportActionGroup(InkscapeActionGroup):
         non_paths = [
             "svg:flowRoot", # Flowed text
             "svg:polygon", # Polygons
+            "svg:circle", #Circle
             "svg:rect" #Rectangles
             ]
 

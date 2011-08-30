@@ -765,6 +765,8 @@ def extract_style(node, style_attrib="style"):
 
 def extract_color(style, color_attrib, *opacity_attribs):
     if color_attrib in style.keys():
+        if style[color_attrib] == "none":
+            return [1,1,1,0]
         c = simplestyle.parseColor(style[color_attrib])
     else:
         c = (0,0,0)

@@ -752,6 +752,17 @@ def get_dimension(s="1024"):
     else:
         return 1024
 
+def extract_style(node, style_attrib="style"):
+    #return simplestyle.parseStyle(node.get("style"))
+
+    # Work around bug (?) in simplestyle that leaves spaces
+    # at the beginning and end of values
+    s = node.get(style_attrib)
+    if s is None:
+        return {}
+    else:
+        return dict([[x.strip() for x in i.split(":")] for i in s.split(";") if len(i)])
+
 def extract_color(style, color_attrib, *opacity_attribs):
     if color_attrib in style.keys():
         c = simplestyle.parseColor(style[color_attrib])
@@ -873,7 +884,7 @@ class SynfigExport(SynfigPrep):
         for stop in node.iterchildren():
             if stop.tag == addNS("stop", "svg"):
                 offset = float(stop.get("offset"))
-                style=simplestyle.parseStyle(stop.get("style",""))
+                style=extract_style(stop)
                 stops[offset] = extract_color(style, "stop-color", "stop-opacity")
             else:
                 raise Exception, "Child of gradient is not a stop"
@@ -884,7 +895,7 @@ class SynfigExport(SynfigPrep):
         layers = []
 
         node_id = node.get("id",str(id(node)))
-        style=simplestyle.parseStyle(node.get("style",""))
+        style=extract_style(node)
         mtx = simpletransform.parseTransform(node.get("transform"))
 
         blines = path_to_bline_list(node.get("d"),node.get(addNS("nodetypes","sodipodi")),mtx)

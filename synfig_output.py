@@ -603,6 +603,10 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
     }
     """
 
+    # Exit on empty paths
+    if not path_d:
+        return []
+
     # Parse the path
     path=simplepath.parsePath(path_d)
 

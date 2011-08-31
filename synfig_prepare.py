@@ -138,6 +138,7 @@ class SynfigExportActionGroup(InkscapeActionGroup):
             "svg:text",     # Text
             "svg:polygon", # Polygons
             "svg:circle", #Circle
+            "svg:ellipse", #Ellipse
             "svg:rect" #Rectangles
             ]
 

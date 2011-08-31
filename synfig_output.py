@@ -845,6 +845,11 @@ class SynfigExport(SynfigPrep):
             else:
                 name = node.get(addNS("label","inkscape"),"Inline Canvas")
                 return d.op_encapsulate(layers, name=name)
+        elif node.tag == addNS("a","svg"): # Treat anchor as a group
+            layers = []
+            for subnode in node:
+                layers+=self.convert_node(subnode,d)
+            return layers
         elif node.tag == addNS("path","svg"):
             return self.convert_path(node,d)
         else:

@@ -353,7 +353,7 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
     parent_style_copy.update(this_style)
     this_style = parent_style_copy
 
-    if node.tag == addNS("g","svg"):
+    if node.tag == addNS("g","svg") or node.tag == addNS("a","svg"):
         # Leave only non-propagating style attributes
         if len(remaining_style) == 0:
             if "style" in node.keys():

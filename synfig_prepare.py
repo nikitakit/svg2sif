@@ -277,8 +277,8 @@ def split_fill_and_stroke(path_node):
         
     # Next split apart the style attribute
     style_group={}
-    style_fill={"stroke":"none"}
-    style_stroke={"fill":"#000000"}
+    style_fill={"stroke":"none","fill":"#000000"}
+    style_stroke={"fill":"none","stroke":"none"}
 
     for key in style.keys():
         if key.startswith("fill"):

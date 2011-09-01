@@ -429,6 +429,22 @@ view-box="0 0 0 0"
             else:
                 self.set_param(layer,param_name,params[param_name],modify_linked=modify_linked)
 
+    def get_param(self,layer,name, param_type="auto"):
+        layer_type=layer.get("type")
+        assert(layer_type)
+
+        if param_type=="auto":
+            param_type=sif.paramType(layer_type,name)
+
+        for param in layer.iterchildren():
+            if param.get("name") == name:
+                if param_type=="real":
+                    return float(param[0].get("value","0"))
+                elif param_type=="integer":
+                    return int(param[0].get("integer","0"))
+                else:
+                    raise Exception, "Getting this type of parameter not yet implemented"
+
     ### Public operations API
     # Operations act on a series of layers, and (optionally) on a series of named parameters
     # The "is_end" attribute should be set to true when the layers are at the end of a canvas
@@ -488,6 +504,18 @@ view-box="0 0 0 0"
             return layers + [warp]
         else:
             return self.op_encapsulate(layers + [warp])
+
+    def op_fade(self, layers, opacity, is_end=False):
+        # If there is blending involved, first encapsulate the layers
+        for layer in layers:
+            if self.get_param(layer,"blend_method") != 0:
+                return self.op_fade(self.op_encapsulate(layers),opacity,is_end)
+
+        # Otherwise, set their amount
+        for layer in layers:
+            amount = self.get_param(layer,"amount")
+            self.set_param(layer,"amount",amount*opacity)
+            return [layer]
 
     ### Global defs, and related
     ###  SVG Gradients
@@ -783,6 +811,13 @@ def extract_color(style, color_attrib, *opacity_attribs):
             color[3] = color[3] * float(style[opacity])
     return color
 
+def extract_opacity(style, *opacity_attribs):
+    ret=1.0
+    for opacity in opacity_attribs:
+        if opacity in style.keys():
+            ret = ret * float(style[opacity])
+    return ret
+
 def extract_width(style, width_attrib, mtx):
     if width_attrib in style.keys():
         width = get_dimension(style[width_attrib])
@@ -930,6 +965,7 @@ class SynfigExport(SynfigPrep):
                 if style["fill"].startswith("url"):
                     color_layer=self.convert_url(style["fill"][5:].split(")")[0],mtx,d)[0]
                     layer = d.op_color([layer],overlay=color_layer)[0]
+                    layer = d.op_fade([layer],extract_opacity(style,"fill-opacity","opacity"))[0]
 
                 layers.append(layer)
 
@@ -953,6 +989,7 @@ class SynfigExport(SynfigPrep):
                 if style["stroke"].startswith("url"):
                     color_layer=self.convert_url(style["stroke"][5:].split(")")[0],mtx,d)[0]
                     layer = d.op_color([layer],overlay=color_layer)[0]
+                    layer = d.op_fade([layer],extract_opacity(style,"stroke-opacity","opacity"))[0]
 
                 layers.append(layer)
 

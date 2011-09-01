@@ -928,7 +928,7 @@ class SynfigExport(SynfigPrep):
                         }   )
 
                 if style["fill"].startswith("url"):
-                    color_layer=self.convert_url(style["fill"][5:-1],mtx,d)[0]
+                    color_layer=self.convert_url(style["fill"][5:].split(")")[0],mtx,d)[0]
                     layer = d.op_color([layer],overlay=color_layer)[0]
 
                 layers.append(layer)
@@ -951,7 +951,7 @@ class SynfigExport(SynfigPrep):
                         }   )
 
                 if style["stroke"].startswith("url"):
-                    color_layer=self.convert_url(style["stroke"][5:-1],mtx,d)[0]
+                    color_layer=self.convert_url(style["stroke"][5:].split(")")[0],mtx,d)[0]
                     layer = d.op_color([layer],overlay=color_layer)[0]
 
                 layers.append(layer)

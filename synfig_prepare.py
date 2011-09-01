@@ -89,7 +89,7 @@ class InkscapeActionGroup:
         if not self.has_action:
             return
 
-        cmd = "--verb=UnlockAllInAllLayers" + self.command + "--verb=FileSave --verb=FileQuit"
+        cmd = "--verb=UnlockAllInAllLayers " + self.command + "--verb=FileSave --verb=FileQuit"
         if bsubprocess:
             p = Popen('inkscape "%s" %s' % (filename, cmd), shell=True, stdout=PIPE, stderr=PIPE)
             rc = p.wait()

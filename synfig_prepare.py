@@ -321,19 +321,17 @@ def split_fill_and_stroke(path_node):
 
 def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]):
     """Propagate style and transform to remove inheritance"""
-    if node.tag == addNS("svg","svg"):
-        # TODO: parse "svg" elements with style or transform attribs
-        for c in node.iterchildren():
-            if c.tag == addNS("namedview", "sodipodi"):
-                continue
-            elif c.tag == addNS("defs", "svg"):
-                continue
-            elif c.tag == addNS("metadata", "svg"):
-                continue
-            else:
-                propagate_attribs(c,parent_style,parent_transform)
+
+    # Don't enter non-graphical portions of the document
+    if node.tag == addNS("namedview", "sodipodi"):
+        return
+    if node.tag == addNS("defs", "svg"):
+        return
+    if node.tag == addNS("metadata", "svg"):
+        return
 
     # Now only graphical elements remain
+
 
 
     # Compose the transform matrices
@@ -355,7 +353,7 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
     parent_style_copy.update(this_style)
     this_style = parent_style_copy
 
-    if node.tag == addNS("g","svg") or node.tag == addNS("a","svg"):
+    if node.tag == addNS("svg","svg") or node.tag == addNS("g","svg") or node.tag == addNS("a","svg"):
         # Leave only non-propagating style attributes
         if len(remaining_style) == 0:
             if "style" in node.keys():

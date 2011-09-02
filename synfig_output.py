@@ -880,7 +880,7 @@ class SynfigExport(SynfigPrep):
             else:
                 name = node.get(addNS("label","inkscape"),"Inline Canvas")
                 return d.op_encapsulate(layers, name=name)
-        elif node.tag == addNS("a","svg"): # Treat anchor as a group
+        elif node.tag == addNS("a","svg") or node.tag == addNS("switch","svg"): # Treat anchor and switch as a group
             layers = []
             for subnode in node:
                 layers+=self.convert_node(subnode,d)

@@ -329,6 +329,8 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
         return
     if node.tag == addNS("metadata", "svg"):
         return
+    if node.tag == addNS("foreignObject", "svg"):
+        return
 
     # Now only graphical elements remain
 
@@ -353,7 +355,7 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
     parent_style_copy.update(this_style)
     this_style = parent_style_copy
 
-    if node.tag == addNS("svg","svg") or node.tag == addNS("g","svg") or node.tag == addNS("a","svg"):
+    if node.tag == addNS("svg","svg") or node.tag == addNS("g","svg") or node.tag == addNS("a","svg") or node.tag == addNS("switch","svg"):
         # Leave only non-propagating style attributes
         if len(remaining_style) == 0:
             if "style" in node.keys():

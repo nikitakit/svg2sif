@@ -822,7 +822,7 @@ def extract_width(style, width_attrib, mtx):
     if width_attrib in style.keys():
         width = get_dimension(style[width_attrib])
     else:
-        return 0
+        width=1
 
     # Calculate average scale factor
     area_scale_factor = mtx[0][0]*mtx[1][1] - mtx[0][1]*mtx[1][0]

@@ -327,7 +327,7 @@ view-box="0 0 0 0"
                 vector=etree.SubElement(point,"vector")
                 etree.SubElement(vector,"x").text=str(x)
                 etree.SubElement(vector,"y").text=str(y)
-                
+
                 width=etree.SubElement(composite,"width")
                 etree.SubElement(width,"real").set("value","1.0")
 
@@ -370,7 +370,7 @@ view-box="0 0 0 0"
                     el.append(layer)
         else:
             raise AssertionError, "Unsupported param type %s" % (param_type)
-                
+
         # TODO: set guid of "el"
 
         return param
@@ -470,7 +470,7 @@ view-box="0 0 0 0"
         if is_end:
             return ret
         else:
-            return self.op_encapsulate(ret)        
+            return self.op_encapsulate(ret)
 
     def op_transform(self, layers, mtx, name="Transform", is_end=False):
         if layers==[]:
@@ -738,7 +738,7 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
             # Loop the subpath
             bline_list[-1]["loop"] = True
 
-            
+
     # Append final superpoint, if needed
     if last:
         bline_list[-1]["points"].append([lastctrl[:],last[:],last[:], lastsplit])
@@ -829,7 +829,7 @@ def extract_width(style, width_attrib, mtx):
     linear_scale_factor = math.sqrt(abs(area_scale_factor))
 
     return width*linear_scale_factor/sif.kux
-    
+
 
 ###### Main Class #########################################
 class SynfigExport(SynfigPrep):
@@ -891,7 +891,7 @@ class SynfigExport(SynfigPrep):
             # An unsupported element
             return []
 
-    def parse_defs(self, node, d):        
+    def parse_defs(self, node, d):
         for child in node.iterchildren():
             if child.tag == addNS("linearGradient","svg"):
                 gradient_id = child.get("id",str(id(child)))

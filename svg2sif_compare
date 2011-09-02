@@ -29,9 +29,9 @@ error_exit()
 }
 
 # Test that everything needed is installed
-if ! which inkscape >/dev/null; then error_exit "Inkscape not found"; fi 
-if ! which synfig >/dev/null; then error_exit "Synfig not found"; fi 
-if ! which convert >/dev/null; then error_exit "Imagemagick not found"; fi 
+if ! which inkscape >/dev/null; then error_exit "Inkscape not found"; fi
+if ! which synfig >/dev/null; then error_exit "Synfig not found"; fi
+if ! which convert >/dev/null; then error_exit "Imagemagick not found"; fi
 
 
 # Define svg2sif

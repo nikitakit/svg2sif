@@ -128,7 +128,7 @@ class InkscapeActionGroup:
         self.svg_document=new_svg_doc
 
         # Return the new document
-        return new_svg_doc    
+        return new_svg_doc
 
 class SynfigExportActionGroup(InkscapeActionGroup):
     """An action group with stock commands designed for Synfig exporting"""
@@ -186,7 +186,7 @@ def fuse_subpaths(path_node):
 
         # We hit a terminator, or this element begins a new path
         prev_coords=[]
-            
+
         if i+1 < len(path):
             # If this is not the last element of the path
 
@@ -224,7 +224,7 @@ def fuse_subpaths(path_node):
 
     path_d=simplepath.formatPath(path)
     path_node.set("d",path_d)
-        
+
 def split_fill_and_stroke(path_node):
     style=simplestyle.parseStyle(path_node.get("style",""))
     # If there is only stroke or only fill, don't split anything
@@ -274,7 +274,7 @@ def split_fill_and_stroke(path_node):
         group.set(attrib_name,attribs[attrib_name])
 
     group.set("id",path_id)
-        
+
     # Next split apart the style attribute
     style_group={}
     style_fill={"stroke":"none","fill":"#000000"}
@@ -301,12 +301,12 @@ def split_fill_and_stroke(path_node):
 
     # Finalize the two paths
     fill.set("d",d)
-    stroke.set("d",d) 
+    stroke.set("d",d)
     if nodetypes is not None:
         fill.set(addNS("nodetypes","sodipodi"),nodetypes)
         stroke.set(addNS("nodetypes","sodipodi"),nodetypes)
     fill.set("id",path_id+"-fill")
-    stroke.set("id",path_id+"-stroke") 
+    stroke.set("id",path_id+"-stroke")
     if transform is not None:
         fill.set("transform",transform)
         stroke.set("transform",transform)

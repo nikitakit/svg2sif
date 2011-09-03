@@ -168,59 +168,50 @@ def debug(obj):
 
 def fuse_subpaths(path_node):
     """Fuses subpaths of a path. Should only be used on unstroked paths"""
-    simpletransform.fuseTransform(path_node)
     path_d=path_node.get("d",None)
     path=simplepath.parsePath(path_d)
 
+    if len(path)==0:
+        return
+
     i = 0
+    initial_point=[ path[i][1][-2], path[i][1][-1] ]
     return_stack=[]
     while i<len(path):
-        # Skip all elements that do not begin a new path
-        if path[i][0] != "Z":
-            if i>0 and path[i][0]=="M":
-                path[i][0]='L'
-            else:
-                i+=1
-                continue
-
-
-        # We hit a terminator, or this element begins a new path
-        prev_coords=[]
-
-        if i+1 < len(path):
-            # If this is not the last element of the path
-
-            # Store the coordinates of the previous element
-            prev_coords=[ path[i-1][1][-2], path[i-1][1][-1] ]
-
-        # Remove the terminator, if there is one
+        # Remove any terminators: they are redundant
         if path[i][0] == "Z":
             path.remove(["Z",[]])
-            i-=1
+            continue
 
-        # Pop the top element of the return stack
-        if return_stack!=[]:
-            el = ['L', return_stack.pop()]
+        # Skip all elements that do not begin a new path
+        if i==0 or path[i][0]!="M":
             i+=1
-            path.insert(i,el)
+            continue
 
-        if prev_coords!=[]:
-            return_stack.append(prev_coords)
-            prev_coords=[]
+        # This element begins a new path - it should be a moveto
+        assert(path[i][0]=='M')
 
-        if i+1 < len(path):
-            # If the next element is a moveto swap it for a line-to
+        # Swap it for a lineto
+        path[i][0]='L'
 
-            if path[i+1][0]=='M':
-                path[i+1][0]='L'
+        # If the old subpath has not been closed yet, close it
+        if path[i-1][1][-2] != initial_point[0] or path[i-1][1][-2] != initial_point[1]:
+            path.insert(i,['L',initial_point])
+            i+=1
 
-        else:
-            # If this is the last element of the path
-            path.append(["Z",[]])
-            break
+        # Set the initial point of this subpath
+        initial_point=[ path[i-1][1][-2], path[i-1][1][-1] ]
 
-        i+=1
+        # Append this point to the return stack
+        return_stack.append(initial_point)
     #end while
+
+    # Now pop the entire return stack
+    while return_stack!=[]:
+        el = ['L', return_stack.pop()]
+        path.insert(i,el)
+        i+=1
+
 
     path_d=simplepath.formatPath(path)
     path_node.set("d",path_d)

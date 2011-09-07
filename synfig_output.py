@@ -519,12 +519,13 @@ view-box="0 0 0 0"
 
     ### Global defs, and related
     ###  SVG Gradients
-    def add_linear_gradient(self, gradient_id, p1, p2, mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], stops=[], link=""):
+    def add_linear_gradient(self, gradient_id, p1, p2, mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], stops=[], link="", spread_method="pad"):
         gradient = {
             "type"      : "linear",
             "p1"        : p1,
             "p2"        : p2,
-            "mtx"       : mtx
+            "mtx"       : mtx,
+            "spreadMethod": spread_method
             }
         if stops!=[]:
             gradient["stops"] = stops
@@ -535,13 +536,14 @@ view-box="0 0 0 0"
             raise AssertionError, "Gradient has neither stops nor link"
         self.gradients[gradient_id] = gradient
 
-    def add_radial_gradient(self, gradient_id, center, radius, focus, mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], stops=[], link=""):
+    def add_radial_gradient(self, gradient_id, center, radius, focus, mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], stops=[], link="", spread_method="pad"):
         gradient = {
             "type"      : "radial",
             "center"    : center,
             "radius"    : radius,
             "focus"     : focus,
-            "mtx"       : mtx
+            "mtx"       : mtx,
+            "spreadMethod": spread_method
             }
         if stops!=[]:
             gradient["stops"] = stops
@@ -563,7 +565,8 @@ view-box="0 0 0 0"
         "p2"        : [x, y],
         "mtx"       : mtx,
         "stops"     : color stops,
-        "stops_guid": color stops guid
+        "stops_guid": color stops guid,
+        "spreadMethod": "pad","reflect", or "repeat"
         }
 
         Radial gradient format:
@@ -574,7 +577,8 @@ view-box="0 0 0 0"
         "focus"     : [x, y],
         "mtx"       : mtx,
         "stops"     : color stops,
-        "stops_guid": color stops guid
+        "stops_guid": color stops guid,
+        "spreadMethod": "pad","reflect", or "repeat"
         }
 
         Color stops format
@@ -609,6 +613,61 @@ view-box="0 0 0 0"
 
         return gradient
 
+    def gradient_to_params(self,gradient):
+        # Create a copy of the gradient
+        g=gradient.copy()
+
+        # Set synfig-only attribs
+        if g["spreadMethod"]=="repeat":
+            g["loop"]=True
+        elif g["spreadMethod"]=="reflect":
+            g["loop"]=True
+            # Reflect the gradient
+            # Original: 0.0 [A . B . C] 1.0
+            # New:      0.0 [A . B . C . B . A] 1.0
+            #           (with gradient size doubled)
+            new_stops={}
+
+            # reflect the stops
+            for pos in g["stops"]:
+                val=g["stops"][pos]
+                if pos == 1.0:
+                    new_stops[pos/2.0] = val
+                else:
+                    new_stops[pos/2.0] = val
+                    new_stops[1 - pos/2.0] = val
+            g["stops"]=new_stops
+
+            # double the gradient size
+            if g["type"]=="linear":
+                g["p2"]=[ g["p1"][0]+2.0*(g["p2"][0]-g["p1"][0]),
+                          g["p1"][1]+2.0*(g["p2"][1]-g["p1"][1]) ]
+            if g["type"]=="radial":
+                g["radius"]= 2.0*g["radius"]
+
+        # Rename "stops" to "gradient"
+        g["gradient"]=g["stops"]
+
+        # Convert coordinates
+        if g["type"]=="linear":
+            g["p1"] = self.coor_svg2sif(g["p1"])
+            g["p2"] = self.coor_svg2sif(g["p2"])
+
+        if g["type"]=="radial":
+            g["center"] = self.coor_svg2sif(g["center"])
+            g["radius"] = self.distance_svg2sif(g["radius"])
+
+        # Delete extra attribs
+        removed_attribs=["type",
+                         "stops",
+                         "stops_guid",
+                         "mtx",
+                         "focus",
+                         "spreadMethod"]
+        for x in removed_attribs:
+            if x in g.keys():
+                del g[x]
+        return g
 
 ###### Utility Functions ##################################
 
@@ -903,11 +962,12 @@ class SynfigExport(SynfigPrep):
                 mtx = simpletransform.parseTransform(child.get("gradientTransform"))
 
                 link = child.get(addNS("href", "xlink"), "#")[1:]
+                spread_method = child.get("spreadMethod", "pad")
                 if link == "":
                     stops = self.parse_stops(child, d)
-                    d.add_linear_gradient(gradient_id, [x1, y1], [x2, y2], mtx, stops=stops)
+                    d.add_linear_gradient(gradient_id, [x1, y1], [x2, y2], mtx, stops=stops, spread_method=spread_method)
                 else:
-                    d.add_linear_gradient(gradient_id, [x1, y1], [x2, y2], mtx, link=link)
+                    d.add_linear_gradient(gradient_id, [x1, y1], [x2, y2], mtx, link=link, spread_method=spread_method)
             elif child.tag == addNS("radialGradient","svg"):
                 gradient_id = child.get("id",str(id(child)))
                 cx = float(child.get("cx","0.0"))
@@ -919,11 +979,12 @@ class SynfigExport(SynfigPrep):
                 mtx = simpletransform.parseTransform(child.get("gradientTransform"))
 
                 link = child.get(addNS("href", "xlink"), "#")[1:]
+                spread_method = child.get("spreadMethod", "pad")
                 if link == "":
                     stops = self.parse_stops(child, d)
-                    d.add_radial_gradient(gradient_id, [cx, cy], r, [fx, fy], mtx, stops=stops)
+                    d.add_radial_gradient(gradient_id, [cx, cy], r, [fx, fy], mtx, stops=stops, spread_method=spread_method)
                 else:
-                    d.add_radial_gradient(gradient_id, [cx, cy], r, [fx, fy], mtx, link=link)
+                    d.add_radial_gradient(gradient_id, [cx, cy], r, [fx, fy], mtx, link=link, spread_method=spread_method)
 
     def parse_stops(self, node, d):
         stops = {}
@@ -1002,18 +1063,14 @@ class SynfigExport(SynfigPrep):
             return [None]
 
         if gradient["type"] == "linear":
-            layer=d.create_layer("linear_gradient",url_id,{
-                    "p1" : d.coor_svg2sif(gradient["p1"]),
-                    "p2" : d.coor_svg2sif(gradient["p2"]),
-                    "gradient" : gradient["stops"],
-                    },  guids={"gradient" : gradient["stops_guid"]}  )
+            layer=d.create_layer("linear_gradient",url_id,
+                                 d.gradient_to_params(gradient),
+                                 guids={"gradient" : gradient["stops_guid"]}  )
 
         if gradient["type"] == "radial":
-            layer=d.create_layer("radial_gradient",url_id,{
-                    "center" : d.coor_svg2sif(gradient["center"]),
-                    "radius" : d.distance_svg2sif(gradient["radius"]),
-                    "gradient" : gradient["stops"],
-                    },  guids={"gradient" : gradient["stops_guid"]}  )
+            layer=d.create_layer("radial_gradient",url_id,
+                                 d.gradient_to_params(gradient),
+                                 guids={"gradient" : gradient["stops_guid"]}  )
 
         return d.op_transform([layer], simpletransform.composeTransform(mtx, gradient["mtx"]))
 

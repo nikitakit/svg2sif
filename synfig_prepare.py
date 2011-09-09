@@ -39,20 +39,34 @@ class InkscapeActionGroup:
     """A class for calling Inkscape to perform operations on a document"""
     def __init__(self, svg_document=None):
         self.command=""
+        self.init_args=""
         self.has_selection=False
         self.has_action=False
         self.svg_document=svg_document
 
     def set_svg_document(self, svg_document):
+        """Set the SVG document that Inkscape will operate on"""
         self.svg_document=svg_document
 
+    def set_init_args(self, cmd):
+        """Set the initial arguments to Inkscape subprocess
+
+        Can be used to pass additional arguments to Inkscape, or an initializer
+        command (e.g. unlock all objects before proceeding).
+        """
+        self.init_command=cmd
+
     def clear(self):
-        """Clear the action"""
+        """Clear all actions"""
         self.command=""
         self.has_action=False
         self.has_selection=False
 
     def verb(self,verb):
+        """Run an Inkscape verb
+
+        For a list of verbs, run `inkscape --verb-list`
+        """
         if self.has_selection:
             self.command+="--verb=%s " % (verb)
 
@@ -60,26 +74,40 @@ class InkscapeActionGroup:
                 self.has_action=True
 
     def select_id(self,object_id):
+        """Select object with given id"""
         self.command+="--select='%s' " % (object_id)
         if not self.has_selection:
             self.has_selection=True
 
     def select_node(self,node):
+        """Select the object represented by the SVG node
+
+        Selection will fail if node has no id attribute
+        """
         id = node.get("id",None)
         if id is None:
             raise Exception("Node has no id")
         self.select_id(id)
 
     def select_nodes(self,nodes):
+        """Select objects represented by SVG nodes
+
+        Selection will fail if any node has no id attribute
+        """
         for node in nodes:
             self.select_node(node)
 
     def select_xpath(self,xpath, namespaces=NSS):
+        """Select objects matching a given XPath expression
+
+        Selection will fail if any matching node has no id attribute
+        """
         nodes=self.svg_document.xpath(xpath, namespaces=namespaces)
 
         self.select_nodes(nodes)
 
     def deselect(self):
+        """Deselect all objects"""
         if self.has_selection:
             self.verb("EditDeselect")
             self.has_selection=False
@@ -89,7 +117,7 @@ class InkscapeActionGroup:
         if not self.has_action:
             return
 
-        cmd = "--verb=UnlockAllInAllLayers " + self.command + "--verb=FileSave --verb=FileQuit"
+        cmd = self.init_args + " " + self.command + "--verb=FileSave --verb=FileQuit"
         if bsubprocess:
             p = Popen('inkscape "%s" %s' % (filename, cmd), shell=True, stdout=PIPE, stderr=PIPE)
             rc = p.wait()
@@ -102,7 +130,7 @@ class InkscapeActionGroup:
         err.close()
 
     def run_document(self):
-        """Run the actions on an svg xml tree"""
+        """Run the actions on the svg xml tree"""
         if not self.has_action:
             return self.svg_document
 
@@ -132,6 +160,12 @@ class InkscapeActionGroup:
 
 class SynfigExportActionGroup(InkscapeActionGroup):
     """An action group with stock commands designed for Synfig exporting"""
+    def __init__(self,svg_document=None):
+        InkscapeActionGroup.__init__(self,svg_document)
+        self.set_init_args("--verb=UnlockAllInAllLayers")
+        self.objects_to_paths()
+        self.unlink_clones()
+
     def objects_to_paths(self):
         non_paths = [
             "svg:flowRoot", # Flowed text
@@ -161,13 +195,10 @@ class SynfigExportActionGroup(InkscapeActionGroup):
 
 ###### Utility Functions ##################################
 
-def debug(obj):
-    sys.stderr.write(str(obj))
-
 ### Path related
 
 def fuse_subpaths(path_node):
-    """Fuses subpaths of a path. Should only be used on unstroked paths"""
+    """Fuse subpaths of a path. Should only be used on unstroked paths"""
     path_d=path_node.get("d",None)
     path=simplepath.parsePath(path_d)
 
@@ -217,6 +248,11 @@ def fuse_subpaths(path_node):
     path_node.set("d",path_d)
 
 def split_fill_and_stroke(path_node):
+    """Split a path into two paths, one filled and one stroked
+
+    Returns a the list [fill, stroke], where each is the XML element of the
+    fill or stroke, or None.
+    """
     style=simplestyle.parseStyle(path_node.get("style",""))
     # If there is only stroke or only fill, don't split anything
     if "fill" in style.keys() and style["fill"] == "none":
@@ -387,8 +423,6 @@ class SynfigPrep(inkex.Effect):
         """Transform document in preparation for exporting it into the Synfig format"""
 
         a = SynfigExportActionGroup(self.document)
-        a.objects_to_paths()
-        a.unlink_clones()
         self.document=a.run_document()
 
         # Remove inheritance of attributes

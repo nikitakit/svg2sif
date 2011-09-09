@@ -30,7 +30,7 @@ import synfig_fileformat as sif
 class SynfigDocument():
     """A synfig document, with commands for adding layers and layer parameters"""
     def __init__(self, width=1024, height=768, name="Synfig Animation 1"):
-        # GUID must be 32-bit hexadecimal
+        # GUID must be 32-char hexadecimal
         # approximate it as a 32-digit decimal
         self.guid=10000000000000000000000000000000
         self.root_canvas = etree.fromstring(
@@ -61,6 +61,7 @@ view-box="0 0 0 0"
         return self.root_canvas.getroottree()
 
     def _update_viewbox(self):
+        """Update the viewbox to match document width and height"""
         attr_viewbox="%f %f %f %f" % (
              -self.width/2.0/sif.kux,
               self.height/2.0/sif.kux,
@@ -96,16 +97,20 @@ view-box="0 0 0 0"
 
     ### Public utility functions
     def new_guid(self):
+        """Generate a new unique GUID"""
         self.guid+=1
         return str(self.guid)
 
     def distance_svg2sif(self,distance):
+        """Convert distance from SVG to Synfig units"""
         return distance/sif.kux
 
     def distance_sif2svg(self,distance):
+        """Convert distance from Synfig to SVG units"""
         return distance*sif.kux
 
     def coor_svg2sif(self,vector):
+        """Convert SVG coordinate [x,y] to Synfig units"""
         x = vector[0]
         y = self.height - vector[1]
 
@@ -117,6 +122,7 @@ view-box="0 0 0 0"
         return [x,y]
 
     def coor_sif2svg(self,vector):
+        """Convert Synfig coordinate [x,y] to SVG units"""
         x=vector[0] * sif.kux + self.width/2.0
         y=vector[1] * sif.kux + self.height/2.0
 
@@ -128,6 +134,7 @@ view-box="0 0 0 0"
         return [x,y]
 
     def list_coor_svg2sif(self, l):
+        """Scan a list for coordinate pairs and convert them to Synfig units"""
         # If list has two numerical elements,
         # treat it as a coordinate pair
         if type(l) == list and len(l) == 2:
@@ -144,6 +151,7 @@ view-box="0 0 0 0"
                 self.list_coor_svg2sif(x)
 
     def list_coor_sif2svg(self, l):
+        """Scan a list for coordinate pairs and convert them to SVG units"""
         # If list has two numerical elements,
         # treat it as a coordinate pair
         if type(l) == list and len(l) == 2:
@@ -160,12 +168,15 @@ view-box="0 0 0 0"
                 self.list_coor_sif2svg(x)
 
     def bline_coor_svg2sif(self,b):
+        """Convert a BLine from SVG to Synfig coordinate units"""
         self.list_coor_svg2sif(b["points"])
 
     def bline_coor_sif2svg(self,b):
+        """Convert a BLine from Synfig to SVG coordinate units"""
         self.list_coor_sif2svg(b["points"])
 
     ### XML Builders -- private
+    ###  used to create XML elements in the Synfig document
 
     def build_layer(self,layer_type,desc,canvas=None,active=True,version="auto"):
         """Build an empty layer"""
@@ -193,10 +204,12 @@ view-box="0 0 0 0"
 
 
     def _calc_radius(self, p1x, p1y, p2x, p2y):
+        """Calculate radius of a tangent given two points"""
         # Synfig tangents are scaled by a factor of 3
         return 3.0 * math.sqrt( (p2x-p1x)**2 + (p2y-p1y)**2 )
 
     def _calc_angle(self, p1x, p1y, p2x, p2y):
+        """Calculate angle (in radians) of a tangent given two points"""
         dx=p2x-p1x
         dy=p2y-p1y
         if dx>0 and dy>0:
@@ -221,7 +234,7 @@ view-box="0 0 0 0"
         return (ag*180)/math.pi
 
     def build_param(self,layer,name,value,param_type="auto", guid=None):
-        """Add a parameter to a layer"""
+        """Add a parameter node to a layer"""
         if layer is None:
             param=self.root_canvas.makeelement("param")
         else:
@@ -373,7 +386,6 @@ view-box="0 0 0 0"
         else:
             raise AssertionError, "Unsupported param type %s" % (param_type)
 
-        # TODO: set guid of "el"
         if guid:
             el.set("guid",guid)
         else:
@@ -382,8 +394,18 @@ view-box="0 0 0 0"
         return param
 
     ### Public layer API
+    ###  Should be used by outside functions to create layers and set layer parameters
 
     def create_layer(self,layer_type,desc,params={},guids={},canvas=None,active=True,version="auto"):
+        """Create a new layer
+
+        Keyword arguments:
+        layer_type -- layer type string used internally by Synfig
+        desc -- layer description
+        params -- a dictionary of parameter names and their values
+        guids -- a dictionary of parameter types and their guids (optional)
+        active -- set to False to create a hidden layer
+        """
         layer = self.build_layer(layer_type,desc,canvas,active,version)
         default_layer_params=sif.defaultLayerParams(layer_type)
 
@@ -405,6 +427,15 @@ view-box="0 0 0 0"
         return layer
 
     def set_param(self,layer,name,value,param_type="auto",guid=None,modify_linked=False):
+        """Set a layer parameter
+
+        Keyword arguments:
+        layer -- the layer to set the parameter for
+        name -- parameter name
+        value -- parameter value
+        param_type -- parameter type (default "auto")
+        guid -- guid of the parameter value
+        """
         if modify_linked:
             raise AssertionError, "Modifying linked parameters is not supported"
 
@@ -429,13 +460,29 @@ view-box="0 0 0 0"
             layer.replace(existing[0], new_param)
 
     def set_params(self,layer,params={},guids={},modify_linked=False):
+        """Set layer parameters
+
+        Keyword arguments:
+        layer -- the layer to set the parameter for
+        params -- a dictionary of parameter names and their values
+        guids -- a dictionary of parameter types and their guids (optional)
+        """
         for param_name in params.keys():
             if param_name in guids.keys():
                 self.set_param(layer,param_name,params[param_name],guid=guids[param_name],modify_linked=modify_linked)
             else:
                 self.set_param(layer,param_name,params[param_name],modify_linked=modify_linked)
 
-    def get_param(self,layer,name, param_type="auto"):
+    def get_param(self,layer,name,param_type="auto"):
+        """Get the value of a layer parameter
+
+        Keyword arguments:
+        layer -- the layer to get the parameter from
+        name -- param name
+        param_type -- parameter type (default "auto")
+
+        NOT FULLY IMPLEMENTED
+        """
         layer_type=layer.get("type")
         assert(layer_type)
 
@@ -457,6 +504,16 @@ view-box="0 0 0 0"
     # (i.e. when adding transform layers on top of them does not require encapsulation)
 
     def op_encapsulate(self, layers, name="Inline Canvas", is_end=False):
+        """Encapsulate the given layers
+
+        Keyword arguments:
+        layers -- list of layers
+        name -- Name of the PasteCanvas layer that is created
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of one layer
+        """
+
         if layers==[]:
             return layers
 
@@ -464,6 +521,17 @@ view-box="0 0 0 0"
         return [layer]
 
     def op_color(self, layers, overlay, is_end=False):
+        """Apply a color overlay to the given layers
+
+        Should be used to apply a gradient or pattern to a shape
+
+        Keyword arguments:
+        layers -- list of layers
+        overlay -- color layer to apply
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
         if layers==[]:
             return layers
         if overlay is None:
@@ -479,6 +547,16 @@ view-box="0 0 0 0"
             return self.op_encapsulate(ret)
 
     def op_transform(self, layers, mtx, name="Transform", is_end=False):
+        """Apply a matrix transformation to the given layers
+
+        Keyword arguments:
+        layers -- list of layers
+        mtx -- transformation matrix
+        name -- name of the Transform layer that is added
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
         if layers==[]:
             return layers
         if mtx is None or mtx == [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]:
@@ -512,6 +590,16 @@ view-box="0 0 0 0"
             return self.op_encapsulate(layers + [warp])
 
     def op_fade(self, layers, opacity, is_end=False):
+        """Increase the opacity of the given layers by a certain amount
+
+        Keyword arguments:
+        layers -- list of layers
+        opacity -- the opacity to apply (float between 0.0 to 1.0)
+        name -- name of the Transform layer that is added
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
         # If there is blending involved, first encapsulate the layers
         for layer in layers:
             if self.get_param(layer,"blend_method") != 0:
@@ -524,8 +612,10 @@ view-box="0 0 0 0"
             return [layer]
 
     ### Global defs, and related
+
     ###  SVG Gradients
     def add_linear_gradient(self, gradient_id, p1, p2, mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], stops=[], link="", spread_method="pad"):
+        """Register a linear gradient definition"""
         gradient = {
             "type"      : "linear",
             "p1"        : p1,
@@ -543,6 +633,7 @@ view-box="0 0 0 0"
         self.gradients[gradient_id] = gradient
 
     def add_radial_gradient(self, gradient_id, center, radius, focus, mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], stops=[], link="", spread_method="pad"):
+        """Register a radial gradient definition"""
         gradient = {
             "type"      : "radial",
             "center"    : center,
@@ -562,7 +653,7 @@ view-box="0 0 0 0"
 
     def get_gradient(self, gradient_id):
         """
-        Returns a gradient with a given id
+        Return a gradient with a given id
 
         Linear gradient format:
         {
@@ -620,6 +711,7 @@ view-box="0 0 0 0"
         return gradient
 
     def gradient_to_params(self,gradient):
+        """Transform gradient to a list of parameters to pass to a Synfig layer"""
         # Create a copy of the gradient
         g=gradient.copy()
 
@@ -681,7 +773,7 @@ view-box="0 0 0 0"
 
 def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]):
     """
-    Converts a path to a BLine List
+    Convert a path to a BLine List
 
     bline_list format:
 
@@ -821,6 +913,7 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
 ### Style related
 
 def get_dimension(s="1024"):
+    """Convert an SVG length string from arbitrary units to pixels"""
     if s == "":
         return 0
     try:
@@ -928,6 +1021,7 @@ class SynfigExport(SynfigPrep):
         d.get_root_tree().write(sys.stdout)
 
     def convert_node(self,node,d):
+        """Convert an SVG node to a list of Synfig layers"""
         if node.tag == addNS("namedview","sodipodi"):
             return []
         elif node.tag == addNS("defs","svg"):
@@ -1005,6 +1099,7 @@ class SynfigExport(SynfigPrep):
         return stops
 
     def convert_path(self, node, d):
+        """Convert an SVG path node to a list of Synfig layers"""
         layers = []
 
         node_id = node.get("id",str(id(node)))
@@ -1068,6 +1163,7 @@ class SynfigExport(SynfigPrep):
         return layers
 
     def convert_url(self,url_id,mtx,d):
+        """Return a list Synfig layers that represent the gradient with the given id"""
         gradient = d.get_gradient(url_id)
         if gradient is None:
             # Patterns and other URLs not supported

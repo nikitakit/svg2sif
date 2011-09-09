@@ -30,7 +30,9 @@ import synfig_fileformat as sif
 class SynfigDocument():
     """A synfig document, with commands for adding layers and layer parameters"""
     def __init__(self, width=1024, height=768, name="Synfig Animation 1"):
-        self.guid=0
+        # GUID must be 32-bit hexadecimal
+        # approximate it as a 32-digit decimal
+        self.guid=10000000000000000000000000000000
         self.root_canvas = etree.fromstring(
             """
 <canvas
@@ -372,6 +374,10 @@ view-box="0 0 0 0"
             raise AssertionError, "Unsupported param type %s" % (param_type)
 
         # TODO: set guid of "el"
+        if guid:
+            el.set("guid",guid)
+        else:
+            el.set("guid",self.new_guid())
 
         return param
 
@@ -1008,6 +1014,7 @@ class SynfigExport(SynfigPrep):
         blines = path_to_bline_list(node.get("d"),node.get(addNS("nodetypes","sodipodi")),mtx)
         for bline in blines:
             d.bline_coor_svg2sif(bline)
+            bline_guid = d.new_guid()
 
             if style.setdefault("fill", "#000000")  != "none":
                 if style["fill"].startswith("url"):
@@ -1020,7 +1027,9 @@ class SynfigExport(SynfigPrep):
                 layer=d.create_layer("region",node_id,{
                         "bline": bline,
                         "color": color,
-                        "winding_style": 1 if style.setdefault("fill-rule","evenodd")=="evenodd" else 0
+                        "winding_style": 1 if style.setdefault("fill-rule","evenodd")=="evenodd" else 0,
+                        }, guids={
+                        "bline":bline_guid 
                         }   )
 
                 if style["fill"].startswith("url"):
@@ -1045,6 +1054,8 @@ class SynfigExport(SynfigPrep):
                         "sharp_cusps": True if style.setdefault("stroke-linejoin","miter")=="miter" else False,
                         "round_tip[0]": False if style.setdefault("stroke-linecap","butt")=="butt" else True,
                         "round_tip[1]": False if style.setdefault("stroke-linecap","butt")=="butt" else True
+                        }, guids={
+                        "bline":bline_guid
                         }   )
 
                 if style["stroke"].startswith("url"):

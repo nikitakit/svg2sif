@@ -206,7 +206,7 @@ view-box="0 0 0 0"
     def _calc_radius(self, p1x, p1y, p2x, p2y):
         """Calculate radius of a tangent given two points"""
         # Synfig tangents are scaled by a factor of 3
-        return 3.0 * math.sqrt( (p2x-p1x)**2 + (p2y-p1y)**2 )
+        return sif.tangent_scale * math.sqrt( (p2x-p1x)**2 + (p2y-p1y)**2 )
 
     def _calc_angle(self, p1x, p1y, p2x, p2y):
         """Calculate angle (in radians) of a tangent given two points"""

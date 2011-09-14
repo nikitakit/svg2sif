@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 # Constants
 kux = 60.0 # Number of SVG units (pixels) per Synfig "unit"
 gamma = 2.2
+tangent_scale = 3.0 # Synfig tangents are scaled by a factor of 3
 
 # Layer parameters, types, and default values
 

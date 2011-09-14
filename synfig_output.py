@@ -538,7 +538,7 @@ view-box="0 0 0 0"
             return layers
 
         overlay_enc=self.op_encapsulate([overlay])
-        self.set_param(overlay_enc[0],"blend_method", 21) # straight onto
+        self.set_param(overlay_enc[0],"blend_method", sif.blend_methods["straight onto"])
         ret = layers + overlay_enc
 
         if is_end:
@@ -602,7 +602,7 @@ view-box="0 0 0 0"
         """
         # If there is blending involved, first encapsulate the layers
         for layer in layers:
-            if self.get_param(layer,"blend_method") != 0:
+            if self.get_param(layer,"blend_method") != sif.blend_methods["composite"]:
                 return self.op_fade(self.op_encapsulate(layers),opacity,is_end)
 
         # Otherwise, set their amount

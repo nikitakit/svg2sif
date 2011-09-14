@@ -1122,7 +1122,7 @@ class SynfigExport(SynfigPrep):
                 layer=d.create_layer("region",node_id,{
                         "bline": bline,
                         "color": color,
-                        "winding_style": 1 if style.setdefault("fill-rule","evenodd")=="evenodd" else 0,
+                        "winding_style": 1 if style.setdefault("fill-rule","nonzero")=="evenodd" else 0,
                         }, guids={
                         "bline":bline_guid 
                         }   )

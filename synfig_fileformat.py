@@ -152,11 +152,20 @@ layers["translate"] = {
     "origin": ["vector", [0.0, 0.0]]
     }
 
+## Layers in mod_filter
+layers["blur"] = default_composite.copy()
+layers["blur"].update({
+        "size": ["vector", [1,1]],
+        "type": ["integer", 3] # 1 is fast gaussian, 3 is regular
+        })
+
+
 ###### Layer versions #####################################
 layer_versions = {
     "outline" : "0.2",
     "rectangle" : "0.2",
     "linear_gradient" : "0.0",
+    "blur" : "0.2",
     None : "0.1" # default
     }
 

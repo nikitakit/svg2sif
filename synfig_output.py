@@ -24,8 +24,12 @@ import math
 import inkex
 from synfig_prepare import *
 import synfig_fileformat as sif
+from copy import deepcopy
 
 ###### Utility Classes ####################################
+class UnsupportedException(Exception):
+    """When part of an element is not supported, this exception is raised to invalidate the whole element"""
+    pass
 
 class SynfigDocument():
     """A synfig document, with commands for adding layers and layer parameters"""
@@ -51,6 +55,7 @@ view-box="0 0 0 0"
         self._update_viewbox()
 
         self.gradients={}
+        self.filters={}
 
     ### Properties
 
@@ -611,6 +616,78 @@ view-box="0 0 0 0"
             self.set_param(layer,"amount",amount*opacity)
             return [layer]
 
+    def op_blur(self, layers, x, y, name="Blur", is_end=False):
+        """Gaussian blur the given layers by the given x and y amounts
+
+        Keyword arguments:
+        layers -- list of layers
+        x -- x-amount of blur
+        y -- x-amount of blur
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
+        blur = self.create_layer("blur", name, params={
+                "blend_method" : sif.blend_methods["straight"],
+                "size" : [x,y]
+                })
+
+        if is_end:
+            return layers + [blur]
+        else:
+            return self.op_encapsulate(layers + [blur])
+
+    def op_filter(self, layers, filter_id, is_end=False):
+        """Apply a filter to the given layers
+
+        Keyword arguments:
+        layers -- list of layers
+        filter_id -- id of the filter
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
+        if filter_id not in self.filters.keys():
+            raise AssertionError, "Filter %s not found" % filter_id
+            return layers
+
+        try:
+            ret = self.filters[filter_id](self, layers, is_end)
+            assert(type(ret) == list)
+            return ret
+        except UnsupportedException:
+            # If the filter is not supported, ignore it.
+            return layers
+
+    def op_set_blend(self, layers, blend_method, is_end=False):
+        """Set the blend method of the given group of layers
+
+        If more than one layer is supplied, they will be encapsulated.
+
+        Keyword arguments:
+        layers -- list of layers
+        blend_method -- blend method to give the layers
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
+        if layers==[]:
+            return layers
+        if blend_method=="composite":
+            return layers
+
+        layer=layers[0]
+        if len(layers) > 1 or self.get_param(layers[0], "amount")!=1.0:
+            layer = self.op_encapsulate(layers)[0]
+
+        layer=deepcopy(layer)
+
+        self.set_param(layer,"blend_method", sif.blend_methods[blend_method])
+
+        return [layer]
+
+
+
     ### Global defs, and related
 
     ###  SVG Gradients
@@ -766,6 +843,11 @@ view-box="0 0 0 0"
             if x in g.keys():
                 del g[x]
         return g
+
+    ### Filters
+    def add_filter(self, filter_id, f):
+        self.filters[filter_id]=f
+
 
 ###### Utility Functions ##################################
 
@@ -1022,69 +1104,87 @@ class SynfigExport(SynfigPrep):
 
     def convert_node(self,node,d):
         """Convert an SVG node to a list of Synfig layers"""
+        # Parse tags that don't draw any layers
         if node.tag == addNS("namedview","sodipodi"):
             return []
         elif node.tag == addNS("defs","svg"):
             self.parse_defs(node,d)
-            return [] # Defs don't draw any layers
+            return []
         elif node.tag == addNS("metadata","svg"):
             return []
-        elif node.tag == addNS("g","svg"):
-            layers = []
-            for subnode in node:
-                layers+=self.convert_node(subnode,d)
-
-            if node.get(addNS("groupmode","inkscape")) != "layer":
-                return layers
-            else:
-                name = node.get(addNS("label","inkscape"),"Inline Canvas")
-                return d.op_encapsulate(layers, name=name)
-        elif node.tag == addNS("a","svg") or node.tag == addNS("switch","svg"): # Treat anchor and switch as a group
-            layers = []
-            for subnode in node:
-                layers+=self.convert_node(subnode,d)
-            return layers
-        elif node.tag == addNS("path","svg"):
-            return self.convert_path(node,d)
-        else:
+        elif node.tag not in [
+            addNS("g", "svg"),
+            addNS("a", "svg"),
+            addNS("switch", "svg"),
+            addNS("path", "svg")]:
             # An unsupported element
             return []
+
+        layers = []
+        if node.tag == addNS("g","svg"):
+            for subnode in node:
+                layers+=self.convert_node(subnode,d)
+            if node.get(addNS("groupmode","inkscape")) == "layer":
+                name = node.get(addNS("label","inkscape"),"Inline Canvas")
+                layers=d.op_encapsulate(layers, name=name)
+
+        elif node.tag == addNS("a","svg") or node.tag == addNS("switch","svg"):
+            # Treat anchor and switch as a group
+            for subnode in node:
+                layers+=self.convert_node(subnode,d)
+        elif node.tag == addNS("path","svg"):
+            layers = self.convert_path(node,d)
+
+        style=extract_style(node)
+        if "filter" in style.keys() and style["filter"].startswith("url"):
+            filter_id=style["filter"][5:].split(")")[0]
+            layers=d.op_filter(layers, filter_id)
+
+        return layers
 
     def parse_defs(self, node, d):
         for child in node.iterchildren():
             if child.tag == addNS("linearGradient","svg"):
-                gradient_id = child.get("id",str(id(child)))
-                x1 = float(child.get("x1","0.0"))
-                x2 = float(child.get("x2","0.0"))
-                y1 = float(child.get("y1","0.0"))
-                y2 = float(child.get("y2","0.0"))
-
-                mtx = simpletransform.parseTransform(child.get("gradientTransform"))
-
-                link = child.get(addNS("href", "xlink"), "#")[1:]
-                spread_method = child.get("spreadMethod", "pad")
-                if link == "":
-                    stops = self.parse_stops(child, d)
-                    d.add_linear_gradient(gradient_id, [x1, y1], [x2, y2], mtx, stops=stops, spread_method=spread_method)
-                else:
-                    d.add_linear_gradient(gradient_id, [x1, y1], [x2, y2], mtx, link=link, spread_method=spread_method)
+                self.parse_gradient(child, d)
             elif child.tag == addNS("radialGradient","svg"):
-                gradient_id = child.get("id",str(id(child)))
-                cx = float(child.get("cx","0.0"))
-                cy = float(child.get("cy","0.0"))
-                r  = float(child.get("r","0.0"))
-                fx = float(child.get("fx","0.0"))
-                fy = float(child.get("fy","0.0"))
+                self.parse_gradient(child, d)
+            elif child.tag == addNS("filter","svg"):
+                self.parse_filter(child, d)
 
-                mtx = simpletransform.parseTransform(child.get("gradientTransform"))
+    def parse_gradient(self, node, d):
+        if node.tag == addNS("linearGradient","svg"):
+            gradient_id = node.get("id",str(id(node)))
+            x1 = float(node.get("x1","0.0"))
+            x2 = float(node.get("x2","0.0"))
+            y1 = float(node.get("y1","0.0"))
+            y2 = float(node.get("y2","0.0"))
 
-                link = child.get(addNS("href", "xlink"), "#")[1:]
-                spread_method = child.get("spreadMethod", "pad")
-                if link == "":
-                    stops = self.parse_stops(child, d)
-                    d.add_radial_gradient(gradient_id, [cx, cy], r, [fx, fy], mtx, stops=stops, spread_method=spread_method)
-                else:
-                    d.add_radial_gradient(gradient_id, [cx, cy], r, [fx, fy], mtx, link=link, spread_method=spread_method)
+            mtx = simpletransform.parseTransform(node.get("gradientTransform"))
+
+            link = node.get(addNS("href", "xlink"), "#")[1:]
+            spread_method = node.get("spreadMethod", "pad")
+            if link == "":
+                stops = self.parse_stops(node, d)
+                d.add_linear_gradient(gradient_id, [x1, y1], [x2, y2], mtx, stops=stops, spread_method=spread_method)
+            else:
+                d.add_linear_gradient(gradient_id, [x1, y1], [x2, y2], mtx, link=link, spread_method=spread_method)
+        elif node.tag == addNS("radialGradient","svg"):
+            gradient_id = node.get("id",str(id(node)))
+            cx = float(node.get("cx","0.0"))
+            cy = float(node.get("cy","0.0"))
+            r  = float(node.get("r","0.0"))
+            fx = float(node.get("fx","0.0"))
+            fy = float(node.get("fy","0.0"))
+
+            mtx = simpletransform.parseTransform(node.get("gradientTransform"))
+
+            link = node.get(addNS("href", "xlink"), "#")[1:]
+            spread_method = node.get("spreadMethod", "pad")
+            if link == "":
+                stops = self.parse_stops(node, d)
+                d.add_radial_gradient(gradient_id, [cx, cy], r, [fx, fy], mtx, stops=stops, spread_method=spread_method)
+            else:
+                d.add_radial_gradient(gradient_id, [cx, cy], r, [fx, fy], mtx, link=link, spread_method=spread_method)
 
     def parse_stops(self, node, d):
         stops = {}
@@ -1097,6 +1197,85 @@ class SynfigExport(SynfigPrep):
                 raise Exception, "Child of gradient is not a stop"
 
         return stops
+
+    def parse_filter(self, node, d):
+        filter_id = node.get("id",str(id(node)))
+
+        # A filter is just like an operator (the op_* functions),
+        # except that it's dynamically generated
+        def the_filter(d, layers, is_end=False):
+            refs = { None              : layers, #default
+                     "SourceGraphic"   : layers }
+            encapsulate_result = not is_end
+
+            for child in node.iterchildren():
+                if child.get("in") not in refs:
+                    # "SourceAlpha", "BackgroundImage",
+                    # "BackgroundAlpha", "FillPaint", "StrokePaint"
+                    # are not supported
+                    raise UnsupportedException
+                l_in=refs[child.get("in")]
+                l_out=[]
+                if child.tag == addNS("feGaussianBlur", "svg"):
+                    std_dev=child.get("stdDeviation","0")
+                    std_dev=std_dev.replace(","," ").split()
+                    x=float(std_dev[0])
+                    if len(std_dev) > 1:
+                        y=float(std_dev[1])
+                    else:
+                        y=x
+
+                    if x==0 and y==0:
+                        l_out = l_in
+                    else:
+                        x=d.distance_svg2sif(x)
+                        y=d.distance_svg2sif(y)
+                        l_out = d.op_blur(l_in,x,y,is_end=True)
+                elif child.tag == addNS("feBlend", "svg"):
+                    # Note: Blend methods are not an exact match
+                    # because SVG uses alpha channel in places where
+                    # synfig does not
+                    mode=child.get("mode", "normal")
+                    if mode == "normal":
+                        blend_method="composite"
+                    elif mode == "multiply":
+                        blend_method="multiply"
+                    elif mode == "screen":
+                        blend_method="screen"
+                    elif mode == "darken":
+                        blend_method="darken"
+                    elif mode == "lighten":
+                        blend_method="brighten"
+                    else:
+                        raise AssertionError, "Invalid blend method"
+
+                    if child.get("in2") == "BackgroundImage":
+                        encapsulate_result = False
+                        l_out = d.op_set_blend(l_in, blend_method) + d.op_set_blend(l_in, "behind")
+                    elif child.get("in2") not in refs:
+                        raise UnsupportedException
+                    else:
+                        l_in2=refs[child.get("in2")]
+                        l_out = l_in2 + d.op_set_blend(l_in1, blend_method)
+
+                else:
+                    # This filter element is currently unsupported
+                    raise UnsupportedException
+
+                # Output the layers
+                if child.get("result"):
+                    refs[child.get("result")]=l_out
+
+                # Set the default for the next filter element
+                refs[None]=l_out
+
+            # Return the output from the last element
+            if len(refs[None]) > 1 and encapsulate_result:
+                return d.op_encapsulate(refs[None])
+            else:
+                return refs[None]
+
+        d.add_filter(filter_id, the_filter)
 
     def convert_path(self, node, d):
         """Convert an SVG path node to a list of Synfig layers"""

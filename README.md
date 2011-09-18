@@ -4,6 +4,17 @@ SIF exporter extension for Inkscape
 svg2sif is an Inkscape extension that converts SVG files to Synfig Animation
 Studio (.sif) files.
 
+Download
+--------
+To download a copy of svg2sif from GitHub, click on "Downloads" at the top of
+the project page and select the download you want.
+
+Alternatively, you can download the code by cloning the git repository:
+
+```
+$ git clone git://github.com/nikitakit/svg2sif.git
+```
+
 Installation
 ------------
 Place the extension files (.py and .inx) in one of the following locations

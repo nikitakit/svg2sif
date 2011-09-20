@@ -20,11 +20,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 """
 import math
+from copy import deepcopy
 
 import inkex
 from synfig_prepare import *
 import synfig_fileformat as sif
-from copy import deepcopy
 
 ###### Utility Classes ####################################
 class UnsupportedException(Exception):
@@ -40,13 +40,13 @@ class SynfigDocument():
         self.root_canvas = etree.fromstring(
             """
 <canvas
-version="0.5"
-width="%f"
-height="%f"
-xres="2834.645752"
-yres="2834.645752"
-view-box="0 0 0 0"
->
+    version="0.5"
+    width="%f"
+    height="%f"
+    xres="2834.645752"
+    yres="2834.645752"
+    view-box="0 0 0 0"
+    >
   <name>%s</name>
 </canvas>
 """                % (width, height, name)
@@ -101,11 +101,13 @@ view-box="0 0 0 0"
     name=property(get_name, set_name)
 
     ### Public utility functions
+
     def new_guid(self):
         """Generate a new unique GUID"""
         self.guid+=1
         return str(self.guid)
 
+    ### Coordinate system conversions
     def distance_svg2sif(self,distance):
         """Convert distance from SVG to Synfig units"""
         return distance/sif.kux
@@ -133,8 +135,7 @@ view-box="0 0 0 0"
 
         y=self.height - y
 
-        if coor_svg2sif([x,y]) != vector:
-            raise AssertionError, "sif to svg coordinate conversion error"
+        assert coor_svg2sif([x,y]) == vector, "sif to svg coordinate conversion error"
 
         return [x,y]
 
@@ -445,7 +446,7 @@ view-box="0 0 0 0"
             raise AssertionError, "Modifying linked parameters is not supported"
 
         layer_type=layer.get("type")
-        assert(layer_type)
+        assert layer_type, "Layer does not have a type"
 
         if param_type=="auto":
             param_type=sif.paramType(layer_type,name)
@@ -489,7 +490,7 @@ view-box="0 0 0 0"
         NOT FULLY IMPLEMENTED
         """
         layer_type=layer.get("type")
-        assert(layer_type)
+        assert layer_type, "Layer does not have a type"
 
         if param_type=="auto":
             param_type=sif.paramType(layer_type,name)
@@ -503,194 +504,13 @@ view-box="0 0 0 0"
                 else:
                     raise Exception, "Getting this type of parameter not yet implemented"
 
-    ### Public operations API
-    # Operations act on a series of layers, and (optionally) on a series of named parameters
-    # The "is_end" attribute should be set to true when the layers are at the end of a canvas
-    # (i.e. when adding transform layers on top of them does not require encapsulation)
-
-    def op_encapsulate(self, layers, name="Inline Canvas", is_end=False):
-        """Encapsulate the given layers
-
-        Keyword arguments:
-        layers -- list of layers
-        name -- Name of the PasteCanvas layer that is created
-        is_end -- set to True if layers are at the end of a canvas
-
-        Returns: list of one layer
-        """
-
-        if layers==[]:
-            return layers
-
-        layer=self.create_layer("PasteCanvas",name,params={"canvas":layers})
-        return [layer]
-
-    def op_color(self, layers, overlay, is_end=False):
-        """Apply a color overlay to the given layers
-
-        Should be used to apply a gradient or pattern to a shape
-
-        Keyword arguments:
-        layers -- list of layers
-        overlay -- color layer to apply
-        is_end -- set to True if layers are at the end of a canvas
-
-        Returns: list of layers
-        """
-        if layers==[]:
-            return layers
-        if overlay is None:
-            return layers
-
-        overlay_enc=self.op_encapsulate([overlay])
-        self.set_param(overlay_enc[0],"blend_method", sif.blend_methods["straight onto"])
-        ret = layers + overlay_enc
-
-        if is_end:
-            return ret
-        else:
-            return self.op_encapsulate(ret)
-
-    def op_transform(self, layers, mtx, name="Transform", is_end=False):
-        """Apply a matrix transformation to the given layers
-
-        Keyword arguments:
-        layers -- list of layers
-        mtx -- transformation matrix
-        name -- name of the Transform layer that is added
-        is_end -- set to True if layers are at the end of a canvas
-
-        Returns: list of layers
-        """
-        if layers==[]:
-            return layers
-        if mtx is None or mtx == [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]:
-            return layers
-
-        src_tl=[100,100]
-        src_br=[200,200]
-
-        dest_tl=[100,100]
-        dest_tr=[200,100]
-        dest_br=[200,200]
-        dest_bl=[100,200]
-
-        simpletransform.applyTransformToPoint(mtx, dest_tl)
-        simpletransform.applyTransformToPoint(mtx, dest_tr)
-        simpletransform.applyTransformToPoint(mtx, dest_br)
-        simpletransform.applyTransformToPoint(mtx, dest_bl)
-
-        warp = self.create_layer("warp", name, params={
-            "src_tl": self.coor_svg2sif(src_tl),
-            "src_br": self.coor_svg2sif(src_br),
-            "dest_tl": self.coor_svg2sif(dest_tl),
-            "dest_tr": self.coor_svg2sif(dest_tr),
-            "dest_br": self.coor_svg2sif(dest_br),
-            "dest_bl": self.coor_svg2sif(dest_bl)
-            } )
-
-        if is_end:
-            return layers + [warp]
-        else:
-            return self.op_encapsulate(layers + [warp])
-
-    def op_fade(self, layers, opacity, is_end=False):
-        """Increase the opacity of the given layers by a certain amount
-
-        Keyword arguments:
-        layers -- list of layers
-        opacity -- the opacity to apply (float between 0.0 to 1.0)
-        name -- name of the Transform layer that is added
-        is_end -- set to True if layers are at the end of a canvas
-
-        Returns: list of layers
-        """
-        # If there is blending involved, first encapsulate the layers
-        for layer in layers:
-            if self.get_param(layer,"blend_method") != sif.blend_methods["composite"]:
-                return self.op_fade(self.op_encapsulate(layers),opacity,is_end)
-
-        # Otherwise, set their amount
-        for layer in layers:
-            amount = self.get_param(layer,"amount")
-            self.set_param(layer,"amount",amount*opacity)
-            return [layer]
-
-    def op_blur(self, layers, x, y, name="Blur", is_end=False):
-        """Gaussian blur the given layers by the given x and y amounts
-
-        Keyword arguments:
-        layers -- list of layers
-        x -- x-amount of blur
-        y -- x-amount of blur
-        is_end -- set to True if layers are at the end of a canvas
-
-        Returns: list of layers
-        """
-        blur = self.create_layer("blur", name, params={
-                "blend_method" : sif.blend_methods["straight"],
-                "size" : [x,y]
-                })
-
-        if is_end:
-            return layers + [blur]
-        else:
-            return self.op_encapsulate(layers + [blur])
-
-    def op_filter(self, layers, filter_id, is_end=False):
-        """Apply a filter to the given layers
-
-        Keyword arguments:
-        layers -- list of layers
-        filter_id -- id of the filter
-        is_end -- set to True if layers are at the end of a canvas
-
-        Returns: list of layers
-        """
-        if filter_id not in self.filters.keys():
-            raise AssertionError, "Filter %s not found" % filter_id
-            return layers
-
-        try:
-            ret = self.filters[filter_id](self, layers, is_end)
-            assert(type(ret) == list)
-            return ret
-        except UnsupportedException:
-            # If the filter is not supported, ignore it.
-            return layers
-
-    def op_set_blend(self, layers, blend_method, is_end=False):
-        """Set the blend method of the given group of layers
-
-        If more than one layer is supplied, they will be encapsulated.
-
-        Keyword arguments:
-        layers -- list of layers
-        blend_method -- blend method to give the layers
-        is_end -- set to True if layers are at the end of a canvas
-
-        Returns: list of layers
-        """
-        if layers==[]:
-            return layers
-        if blend_method=="composite":
-            return layers
-
-        layer=layers[0]
-        if len(layers) > 1 or self.get_param(layers[0], "amount")!=1.0:
-            layer = self.op_encapsulate(layers)[0]
-
-        layer=deepcopy(layer)
-
-        self.set_param(layer,"blend_method", sif.blend_methods[blend_method])
-
-        return [layer]
-
-
-
     ### Global defs, and related
 
-    ###  SVG Gradients
+    # SVG Filters
+    def add_filter(self, filter_id, f):
+        self.filters[filter_id]=f
+
+    # SVG Gradients
     def add_linear_gradient(self, gradient_id, p1, p2, mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], stops=[], link="", spread_method="pad"):
         """Register a linear gradient definition"""
         gradient = {
@@ -844,10 +664,189 @@ view-box="0 0 0 0"
                 del g[x]
         return g
 
-    ### Filters
-    def add_filter(self, filter_id, f):
-        self.filters[filter_id]=f
+    ### Public operations API
+    # Operations act on a series of layers, and (optionally) on a series of named parameters
+    # The "is_end" attribute should be set to true when the layers are at the end of a canvas
+    # (i.e. when adding transform layers on top of them does not require encapsulation)
 
+    def op_blur(self, layers, x, y, name="Blur", is_end=False):
+        """Gaussian blur the given layers by the given x and y amounts
+
+        Keyword arguments:
+        layers -- list of layers
+        x -- x-amount of blur
+        y -- x-amount of blur
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
+        blur = self.create_layer("blur", name, params={
+                "blend_method" : sif.blend_methods["straight"],
+                "size" : [x,y]
+                })
+
+        if is_end:
+            return layers + [blur]
+        else:
+            return self.op_encapsulate(layers + [blur])
+
+    def op_color(self, layers, overlay, is_end=False):
+        """Apply a color overlay to the given layers
+
+        Should be used to apply a gradient or pattern to a shape
+
+        Keyword arguments:
+        layers -- list of layers
+        overlay -- color layer to apply
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
+        if layers==[]:
+            return layers
+        if overlay is None:
+            return layers
+
+        overlay_enc=self.op_encapsulate([overlay])
+        self.set_param(overlay_enc[0],"blend_method", sif.blend_methods["straight onto"])
+        ret = layers + overlay_enc
+
+        if is_end:
+            return ret
+        else:
+            return self.op_encapsulate(ret)
+
+    def op_encapsulate(self, layers, name="Inline Canvas", is_end=False):
+        """Encapsulate the given layers
+
+        Keyword arguments:
+        layers -- list of layers
+        name -- Name of the PasteCanvas layer that is created
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of one layer
+        """
+
+        if layers==[]:
+            return layers
+
+        layer=self.create_layer("PasteCanvas",name,params={"canvas":layers})
+        return [layer]
+
+    def op_fade(self, layers, opacity, is_end=False):
+        """Increase the opacity of the given layers by a certain amount
+
+        Keyword arguments:
+        layers -- list of layers
+        opacity -- the opacity to apply (float between 0.0 to 1.0)
+        name -- name of the Transform layer that is added
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
+        # If there is blending involved, first encapsulate the layers
+        for layer in layers:
+            if self.get_param(layer,"blend_method") != sif.blend_methods["composite"]:
+                return self.op_fade(self.op_encapsulate(layers),opacity,is_end)
+
+        # Otherwise, set their amount
+        for layer in layers:
+            amount = self.get_param(layer,"amount")
+            self.set_param(layer,"amount",amount*opacity)
+            return [layer]
+
+
+    def op_filter(self, layers, filter_id, is_end=False):
+        """Apply a filter to the given layers
+
+        Keyword arguments:
+        layers -- list of layers
+        filter_id -- id of the filter
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
+        if filter_id not in self.filters.keys():
+            raise AssertionError, "Filter %s not found" % filter_id
+            return layers
+
+        try:
+            ret = self.filters[filter_id](self, layers, is_end)
+            assert type(ret) == list
+            return ret
+        except UnsupportedException:
+            # If the filter is not supported, ignore it.
+            return layers
+
+    def op_set_blend(self, layers, blend_method, is_end=False):
+        """Set the blend method of the given group of layers
+
+        If more than one layer is supplied, they will be encapsulated.
+
+        Keyword arguments:
+        layers -- list of layers
+        blend_method -- blend method to give the layers
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
+        if layers==[]:
+            return layers
+        if blend_method=="composite":
+            return layers
+
+        layer=layers[0]
+        if len(layers) > 1 or self.get_param(layers[0], "amount")!=1.0:
+            layer = self.op_encapsulate(layers)[0]
+
+        layer=deepcopy(layer)
+
+        self.set_param(layer,"blend_method", sif.blend_methods[blend_method])
+
+        return [layer]
+
+    def op_transform(self, layers, mtx, name="Transform", is_end=False):
+        """Apply a matrix transformation to the given layers
+
+        Keyword arguments:
+        layers -- list of layers
+        mtx -- transformation matrix
+        name -- name of the Transform layer that is added
+        is_end -- set to True if layers are at the end of a canvas
+
+        Returns: list of layers
+        """
+        if layers==[]:
+            return layers
+        if mtx is None or mtx == [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]:
+            return layers
+
+        src_tl=[100,100]
+        src_br=[200,200]
+
+        dest_tl=[100,100]
+        dest_tr=[200,100]
+        dest_br=[200,200]
+        dest_bl=[100,200]
+
+        simpletransform.applyTransformToPoint(mtx, dest_tl)
+        simpletransform.applyTransformToPoint(mtx, dest_tr)
+        simpletransform.applyTransformToPoint(mtx, dest_br)
+        simpletransform.applyTransformToPoint(mtx, dest_bl)
+
+        warp = self.create_layer("warp", name, params={
+            "src_tl": self.coor_svg2sif(src_tl),
+            "src_br": self.coor_svg2sif(src_br),
+            "dest_tl": self.coor_svg2sif(dest_tl),
+            "dest_tr": self.coor_svg2sif(dest_tr),
+            "dest_br": self.coor_svg2sif(dest_br),
+            "dest_bl": self.coor_svg2sif(dest_bl)
+            } )
+
+        if is_end:
+            return layers + [warp]
+        else:
+            return self.op_encapsulate(layers + [warp])
 
 ###### Utility Functions ##################################
 

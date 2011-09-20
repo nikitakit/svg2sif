@@ -526,7 +526,7 @@ class SynfigDocument():
         elif link!="":
             gradient["link"] = link
         else:
-            raise AssertionError, "Gradient has neither stops nor link"
+            raise MalformedSVGError, "Gradient has neither stops nor link"
         self.gradients[gradient_id] = gradient
 
     def add_radial_gradient(self, gradient_id, center, radius, focus, mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], stops=[], link="", spread_method="pad"):
@@ -545,7 +545,7 @@ class SynfigDocument():
         elif link!="":
             gradient["link"] = link
         else:
-            raise AssertionError, "Gradient has neither stops nor link"
+            raise MalformedSVGError, "Gradient has neither stops nor link"
         self.gradients[gradient_id] = gradient
 
     def get_gradient(self, gradient_id):
@@ -594,7 +594,7 @@ class SynfigDocument():
 
         # If the gradient does have a link, find the color stops recursively
         if gradient["link"] not in self.gradients.keys():
-            raise AssertionError, "Linked gradient ID not found"
+            raise MalformedSVGError, "Linked gradient ID not found"
 
         linked_gradient = self.get_gradient(gradient["link"])
         gradient["stops"] = linked_gradient["stops"]
@@ -767,7 +767,7 @@ class SynfigDocument():
         Returns: list of layers
         """
         if filter_id not in self.filters.keys():
-            raise AssertionError, "Filter %s not found" % filter_id
+            raise MalformedSVGError, "Filter %s not found" % filter_id
             return layers
 
         try:
@@ -903,7 +903,7 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
     for s in path:
         cmd, params = s
         if cmd!="M" and bline_list==[]:
-            raise AssertionError, "Bad path data: path doesn't start with moveto, %s, %s" % (s, path)
+            raise MalformedSVGError, "Bad path data: path doesn't start with moveto, %s, %s" % (s, path)
         elif cmd=="M":
             # Add previous point to subpath
             if last:
@@ -1197,7 +1197,7 @@ class SynfigExport(SynfigPrep):
                 style=extract_style(stop)
                 stops[offset] = extract_color(style, "stop-color", "stop-opacity")
             else:
-                raise Exception, "Child of gradient is not a stop"
+                raise MalformedSVGError, "Child of gradient is not a stop"
 
         return stops
 
@@ -1365,8 +1365,10 @@ class SynfigExport(SynfigPrep):
 
 
 if __name__ == '__main__':
-    e = SynfigExport()
-    e.affect(output=False)
-
+    try:
+        e = SynfigExport()
+        e.affect(output=False)
+    except MalformedSVGError as e:
+        errormsg(e)
 
 # vim: expandtab shiftwidth=4 tabstop=8 softtabstop=4 encoding=utf-8 textwidth=99

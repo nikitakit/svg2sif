@@ -29,6 +29,18 @@ import cubicsuperpath
 
 ###### Utility Classes ####################################
 
+class MalformedSVGError(Exception):
+    """Raised when the SVG document is invalid or contains unsupported features"""
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return """SVG document is invalid or contains unsupported features
+
+Error message: %s
+
+The SVG to Synfig converter is designed to handle SVG files that were created using Inkscape. Unsupported features are most likely to occur in SVG files written by other programs.
+"""     % repr(self.value)
+
 try:
     from subprocess import Popen, PIPE
     bsubprocess = True
@@ -86,7 +98,7 @@ class InkscapeActionGroup:
         """
         id = node.get("id",None)
         if id is None:
-            raise Exception("Node has no id")
+            raise MalformedSVGError, "Node has no id"
         self.select_id(id)
 
     def select_nodes(self,nodes):
@@ -437,8 +449,11 @@ class SynfigPrep(inkex.Effect):
                     fuse_subpaths(fill)
 
 if __name__ == '__main__':
-    e = SynfigPrep()
-    e.affect()
+    try:
+        e = SynfigPrep()
+        e.affect()
+    except MalformedSVGError as e:
+        errormsg(e)
 
 
 # vim: expandtab shiftwidth=4 tabstop=8 softtabstop=4 encoding=utf-8 textwidth=99

@@ -1250,7 +1250,7 @@ class SynfigExport(SynfigPrep):
                     elif mode == "lighten":
                         blend_method="brighten"
                     else:
-                        raise AssertionError, "Invalid blend method"
+                        raise MalformedSVGError, "Invalid blend method"
 
                     if child.get("in2") == "BackgroundImage":
                         encapsulate_result = False

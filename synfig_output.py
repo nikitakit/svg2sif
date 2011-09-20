@@ -1140,6 +1140,10 @@ class SynfigExport(SynfigPrep):
             filter_id=style["filter"][5:].split(")")[0]
             layers=d.op_filter(layers, filter_id)
 
+        opacity=extract_opacity(style,"opacity")
+        if opacity != 1.0:
+            layers=d.op_fade(layers,opacity)
+
         return layers
 
     def parse_defs(self, node, d):
@@ -1296,7 +1300,7 @@ class SynfigExport(SynfigPrep):
                     # Draw the shape in black, then overlay it with the gradient or pattern
                     color = [0,0,0,1]
                 else:
-                    color = extract_color(style, "fill", "fill-opacity", "opacity")
+                    color = extract_color(style, "fill", "fill-opacity")
 
                 layer=d.create_layer("region",node_id,{
                         "bline": bline,
@@ -1309,7 +1313,7 @@ class SynfigExport(SynfigPrep):
                 if style["fill"].startswith("url"):
                     color_layer=self.convert_url(style["fill"][5:].split(")")[0],mtx,d)[0]
                     layer = d.op_color([layer],overlay=color_layer)[0]
-                    layer = d.op_fade([layer],extract_opacity(style,"fill-opacity","opacity"))[0]
+                    layer = d.op_fade([layer],extract_opacity(style,"fill-opacity"))[0]
 
                 layers.append(layer)
 
@@ -1319,7 +1323,7 @@ class SynfigExport(SynfigPrep):
                     # Draw the shape in black, then overlay it with the gradient or pattern
                     color = [0,0,0,1]
                 else:
-                    color = extract_color(style, "stroke", "stroke-opacity", "opacity")
+                    color = extract_color(style, "stroke", "stroke-opacity")
 
                 layer=d.create_layer("outline",node_id,{
                         "bline": bline,
@@ -1335,7 +1339,7 @@ class SynfigExport(SynfigPrep):
                 if style["stroke"].startswith("url"):
                     color_layer=self.convert_url(style["stroke"][5:].split(")")[0],mtx,d)[0]
                     layer = d.op_color([layer],overlay=color_layer)[0]
-                    layer = d.op_fade([layer],extract_opacity(style,"stroke-opacity","opacity"))[0]
+                    layer = d.op_fade([layer],extract_opacity(style,"stroke-opacity"))[0]
 
                 layers.append(layer)
 

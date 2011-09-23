@@ -753,7 +753,8 @@ class SynfigDocument():
         for layer in layers:
             amount = self.get_param(layer,"amount")
             self.set_param(layer,"amount",amount*opacity)
-            return [layer]
+
+        return layers
 
 
     def op_filter(self, layers, filter_id, is_end=False):

@@ -994,36 +994,6 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
 
 ### Style related
 
-def get_dimension(s="1024"):
-    """Convert an SVG length string from arbitrary units to pixels"""
-    if s == "":
-        return 0
-    try:
-        last=int(s[-1])
-    except:
-        last=None
-
-    if type(last) == int:
-        return float(s)
-    elif s[-1]=="%":
-        return 1024
-    elif s[-2:]=="px":
-        return float(s[:-2])
-    elif s[-2:]=="pt":
-        return float(s[:-2])*1.25
-    elif s[-2:]=="em":
-        return float(s[:-2])*16
-    elif s[-2:]=="mm":
-        return float(s[:-2])*3.54
-    elif s[-2:]=="pc":
-        return float(s[:-2])*15
-    elif s[-2:]=="cm":
-        return float(s[:-2])*35.43
-    elif s[-2:]=="in":
-        return float(s[:-2])*90
-    else:
-        return 1024
-
 def extract_style(node, style_attrib="style"):
     #return simplestyle.parseStyle(node.get("style"))
 

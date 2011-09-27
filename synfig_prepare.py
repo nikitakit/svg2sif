@@ -374,10 +374,17 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
     # Now only graphical elements remain
 
 
-
-    # Compose the transform matrices
-    this_transform=simpletransform.parseTransform(node.get("transform"))
-    this_transform=simpletransform.composeTransform(parent_transform,this_transform)
+    # Compose the transformations
+    if node.tag == addNS("svg","svg") and node.get("viewBox"):
+        vx,vy,vw,vh=[get_dimension(x) for x in node.get("viewBox").split()]
+        dw=get_dimension(node.get("width",vw))
+        dh=get_dimension(node.get("height",vh))
+        t="translate(%f,%f) scale(%f,%f)" % (-vx, -vy, dw/vw, dh/vh)
+        this_transform=simpletransform.parseTransform(t,parent_transform)
+        this_transform=simpletransform.parseTransform(node.get("transform"),this_transform)
+        del node.attrib["viewBox"]
+    else:
+        this_transform=simpletransform.parseTransform(node.get("transform"), parent_transform)
 
     # Compose the style attribs
     this_style=simplestyle.parseStyle(node.get("style",""))
@@ -425,6 +432,38 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
         # Set the element's style and transform attribs
         node.set("style",simplestyle.formatStyle(this_style))
         node.set("transform",simpletransform.formatTransform(this_transform))
+
+### Style related
+
+def get_dimension(s="1024"):
+    """Convert an SVG length string from arbitrary units to pixels"""
+    if s == "":
+        return 0
+    try:
+        last=int(s[-1])
+    except:
+        last=None
+
+    if type(last) == int:
+        return float(s)
+    elif s[-1]=="%":
+        return 1024
+    elif s[-2:]=="px":
+        return float(s[:-2])
+    elif s[-2:]=="pt":
+        return float(s[:-2])*1.25
+    elif s[-2:]=="em":
+        return float(s[:-2])*16
+    elif s[-2:]=="mm":
+        return float(s[:-2])*3.54
+    elif s[-2:]=="pc":
+        return float(s[:-2])*15
+    elif s[-2:]=="cm":
+        return float(s[:-2])*35.43
+    elif s[-2:]=="in":
+        return float(s[:-2])*90
+    else:
+        return 1024
 
 ###### Main Class #########################################
 class SynfigPrep(inkex.Effect):

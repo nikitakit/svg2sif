@@ -108,6 +108,7 @@ class SynfigDocument():
         return str(self.guid)
 
     ### Coordinate system conversions
+
     def distance_svg2sif(self,distance):
         """Convert distance from SVG to Synfig units"""
         return distance/sif.kux
@@ -997,8 +998,8 @@ def path_to_bline_list(path_d,nodetypes=None,mtx=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.
 def extract_style(node, style_attrib="style"):
     #return simplestyle.parseStyle(node.get("style"))
 
-    # Work around bug (?) in simplestyle that leaves spaces
-    # at the beginning and end of values
+    # Work around a simplestyle bug in older verions of Inkscape
+    # that leaves spaces at the beginning and end of values
     s = node.get(style_attrib)
     if s is None:
         return {}
@@ -1034,7 +1035,6 @@ def extract_width(style, width_attrib, mtx):
     else:
         width=1
 
-    # Calculate average scale factor
     area_scale_factor = mtx[0][0]*mtx[1][1] - mtx[0][1]*mtx[1][0]
     linear_scale_factor = math.sqrt(abs(area_scale_factor))
 
@@ -1098,7 +1098,8 @@ class SynfigExport(SynfigPrep):
                 name = node.get(addNS("label","inkscape"),"Inline Canvas")
                 layers=d.op_encapsulate(layers, name=name)
 
-        elif node.tag == addNS("a","svg") or node.tag == addNS("switch","svg"):
+        elif (node.tag == addNS("a","svg")
+              or node.tag == addNS("switch","svg")):
             # Treat anchor and switch as a group
             for subnode in node:
                 layers+=self.convert_node(subnode,d)
@@ -1176,7 +1177,7 @@ class SynfigExport(SynfigPrep):
         filter_id = node.get("id",str(id(node)))
 
         # A filter is just like an operator (the op_* functions),
-        # except that it's dynamically generated
+        # except that it's created here
         def the_filter(d, layers, is_end=False):
             refs = { None              : layers, #default
                      "SourceGraphic"   : layers }
@@ -1208,7 +1209,7 @@ class SynfigExport(SynfigPrep):
                 elif child.tag == addNS("feBlend", "svg"):
                     # Note: Blend methods are not an exact match
                     # because SVG uses alpha channel in places where
-                    # synfig does not
+                    # Synfig does not
                     mode=child.get("mode", "normal")
                     if mode == "normal":
                         blend_method="composite"
@@ -1266,8 +1267,8 @@ class SynfigExport(SynfigPrep):
 
             if style.setdefault("fill", "#000000")  != "none":
                 if style["fill"].startswith("url"):
-                    # Gradient or pattern
-                    # Draw the shape in black, then overlay it with the gradient or pattern
+                    # Set the color to black, so we can later overlay
+                    # the shape with a gradient or pattern
                     color = [0,0,0,1]
                 else:
                     color = extract_color(style, "fill", "fill-opacity")
@@ -1277,7 +1278,7 @@ class SynfigExport(SynfigPrep):
                         "color": color,
                         "winding_style": 1 if style.setdefault("fill-rule","nonzero")=="evenodd" else 0,
                         }, guids={
-                        "bline":bline_guid 
+                        "bline":bline_guid
                         }   )
 
                 if style["fill"].startswith("url"):
@@ -1289,8 +1290,8 @@ class SynfigExport(SynfigPrep):
 
             if style.setdefault("stroke", "none")  != "none":
                 if style["stroke"].startswith("url"):
-                    # Gradient or pattern
-                    # Draw the shape in black, then overlay it with the gradient or pattern
+                    # Set the color to black, so we can later overlay
+                    # the shape with a gradient or pattern
                     color = [0,0,0,1]
                 else:
                     color = extract_color(style, "stroke", "stroke-opacity")

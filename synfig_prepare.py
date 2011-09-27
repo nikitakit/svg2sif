@@ -180,20 +180,21 @@ class SynfigExportActionGroup(InkscapeActionGroup):
 
     def objects_to_paths(self):
         non_paths = [
-            "svg:flowRoot", # Flowed text
-            "svg:text",     # Text
-            "svg:polygon", # Polygons
-            "svg:circle", #Circle
-            "svg:ellipse", #Ellipse
-            "svg:rect" #Rectangles
+            "svg:rect",
+            "svg:circle",
+            "svg:ellipse",
+            "svg:line",
+            "svg:polyline",
+            "svg:polygon",
+            "svg:flowRoot",
+            "svg:text"
             ]
 
         # Build an xpath command to select these nodes
         xpath_cmd=" | ".join(["//" + np for np in non_paths])
 
-        # Note: already selected elements are not deselected
-
         # Select all of these elements
+        # Note: already selected elements are not deselected
         self.select_xpath(xpath_cmd, namespaces=NSS)
 
         # Convert them to paths
@@ -362,16 +363,11 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
     """Propagate style and transform to remove inheritance"""
 
     # Don't enter non-graphical portions of the document
-    if node.tag == addNS("namedview", "sodipodi"):
+    if (node.tag == addNS("namedview", "sodipodi")
+        or node.tag == addNS("defs", "svg")
+        or node.tag == addNS("metadata", "svg")
+        or node.tag == addNS("foreignObject", "svg")):
         return
-    if node.tag == addNS("defs", "svg"):
-        return
-    if node.tag == addNS("metadata", "svg"):
-        return
-    if node.tag == addNS("foreignObject", "svg"):
-        return
-
-    # Now only graphical elements remain
 
 
     # Compose the transformations
@@ -408,7 +404,10 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
             this_style[attrib]=node.get(attrib)
             del node.attrib[attrib]
 
-    if node.tag == addNS("svg","svg") or node.tag == addNS("g","svg") or node.tag == addNS("a","svg") or node.tag == addNS("switch","svg"):
+    if (node.tag == addNS("svg","svg")
+        or node.tag == addNS("g","svg")
+        or node.tag == addNS("a","svg")
+        or node.tag == addNS("switch","svg")):
         # Leave only non-propagating style attributes
         if len(remaining_style) == 0:
             if "style" in node.keys():
@@ -467,9 +466,6 @@ def get_dimension(s="1024"):
 
 ###### Main Class #########################################
 class SynfigPrep(inkex.Effect):
-    def __init__(self):
-        inkex.Effect.__init__(self)
-
     def effect(self):
         """Transform document in preparation for exporting it into the Synfig format"""
 

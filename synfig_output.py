@@ -20,6 +20,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 """
 import math
+import uuid
 from copy import deepcopy
 
 import inkex
@@ -34,9 +35,6 @@ class UnsupportedException(Exception):
 class SynfigDocument():
     """A synfig document, with commands for adding layers and layer parameters"""
     def __init__(self, width=1024, height=768, name="Synfig Animation 1"):
-        # GUID must be 32-char hexadecimal
-        # approximate it as a 32-digit decimal
-        self.guid=10000000000000000000000000000000
         self.root_canvas = etree.fromstring(
             """
 <canvas
@@ -103,9 +101,8 @@ class SynfigDocument():
     ### Public utility functions
 
     def new_guid(self):
-        """Generate a new unique GUID"""
-        self.guid+=1
-        return str(self.guid)
+        """Generate a new GUID"""
+        return uuid.uuid4().hex
 
     ### Coordinate system conversions
 

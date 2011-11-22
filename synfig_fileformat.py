@@ -28,7 +28,7 @@ tangent_scale = 3.0 # Synfig tangents are scaled by a factor of 3
 
 
 ###### Layer parameters, types, and default values ########
-layers={}
+layers = {}
 
 # Layer_Composite is the parent of most layers
 default_composite = {
@@ -80,12 +80,12 @@ default_shape.update({
         "winding_style": ["integer", 0]
         })
 
-layers["region"]=default_shape.copy()
+layers["region"] = default_shape.copy()
 layers["region"].update({
         "bline": ["bline", None]
         })
 
-layers["outline"]=default_shape.copy()
+layers["outline"] = default_shape.copy()
 layers["outline"].update({
         "bline": ["bline", None],
         "round_tip[0]": ["bool", True],
@@ -195,12 +195,12 @@ blend_method_names = {
     19 : "alpha over"      #deprecated
     }
 
-blend_methods=dict((v,k) for (k, v) in blend_method_names.iteritems())
+blend_methods = dict((v, k) for (k, v) in blend_method_names.iteritems())
 
 ###### Functions ##########################################
-def paramType(layer,param,value=None):
+def paramType(layer, param, value=None):
     if layer in layers.keys():
-        layer_params=layers[layer]
+        layer_params = layers[layer]
         if param in layer_params.keys():
             return layer_params[param][0]
         else:

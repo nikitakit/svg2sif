@@ -2,8 +2,9 @@
 <inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
     <_name>Synfig Output</_name>
     <id>org.inkscape.output.sif</id>
-    <dependency type="extension">org.synfig.svg.prepare</dependency>
     <dependency type="executable" location="extensions">synfig_output.py</dependency>
+    <dependency type="executable" location="extensions">synfig_prepare.py</dependency>
+    <dependency type="executable" location="extensions">inkex.py</dependency>
     <output>
         <extension>.sif</extension>
         <mimetype>image/sif</mimetype>

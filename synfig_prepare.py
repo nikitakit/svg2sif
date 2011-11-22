@@ -20,12 +20,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 """
 
-import os, sys, tempfile
+import os, tempfile
 
 import inkex
-from inkex import NSS, addNS, etree, debug, errormsg
+from inkex import NSS, addNS, etree, errormsg
 import simplepath, simplestyle, simpletransform
-import cubicsuperpath
 
 ###### Utility Classes ####################################
 
@@ -96,10 +95,10 @@ class InkscapeActionGroup(object):
 
         Selection will fail if node has no id attribute
         """
-        id = node.get("id",None)
-        if id is None:
+        node_id = node.get("id",None)
+        if node_id is None:
             raise MalformedSVGError, "Node has no id"
-        self.select_id(id)
+        self.select_id(node_id)
 
     def select_nodes(self,nodes):
         """Select objects represented by SVG nodes
@@ -179,6 +178,7 @@ class SynfigExportActionGroup(InkscapeActionGroup):
         self.unlink_clones()
 
     def objects_to_paths(self):
+        """Convert unsupported objects to paths"""
         non_paths = [
             "svg:rect",
             "svg:circle",
@@ -202,6 +202,7 @@ class SynfigExportActionGroup(InkscapeActionGroup):
         self.deselect()
 
     def unlink_clones(self):
+        """Unlink clones (remove <svg:use> elements)"""
         self.select_xpath("//svg:use", namespaces=NSS)
         self.verb("EditUnlinkClone")
         self.deselect()
@@ -267,6 +268,7 @@ def split_fill_and_stroke(path_node):
     fill or stroke, or None.
     """
     style=simplestyle.parseStyle(path_node.get("style",""))
+
     # If there is only stroke or only fill, don't split anything
     if "fill" in style.keys() and style["fill"] == "none":
         if "stroke" not in style.keys() or style["stroke"] == "none":

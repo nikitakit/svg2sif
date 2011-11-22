@@ -19,11 +19,14 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 """
+import sys
 import math
 import uuid
 from copy import deepcopy
 
 import inkex
+import cubicsuperpath
+
 from synfig_prepare import *
 import synfig_fileformat as sif
 
@@ -133,7 +136,7 @@ class SynfigDocument(object):
 
         y=self.height - y
 
-        assert coor_svg2sif([x,y]) == vector, "sif to svg coordinate conversion error"
+        assert self.coor_svg2sif([x,y]) == vector, "sif to svg coordinate conversion error"
 
         return [x,y]
 
@@ -506,6 +509,7 @@ class SynfigDocument(object):
 
     # SVG Filters
     def add_filter(self, filter_id, f):
+        """Register a filter"""
         self.filters[filter_id]=f
 
     # SVG Gradients
@@ -1227,7 +1231,7 @@ class SynfigExport(SynfigPrep):
                         raise UnsupportedException
                     else:
                         l_in2=refs[child.get("in2")]
-                        l_out = l_in2 + d.op_set_blend(l_in1, blend_method)
+                        l_out = l_in2 + d.op_set_blend(l_in, blend_method)
 
                 else:
                     # This filter element is currently unsupported

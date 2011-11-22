@@ -47,7 +47,7 @@ try:
 except:
     bsubprocess = False
 
-class InkscapeActionGroup:
+class InkscapeActionGroup(object):
     """A class for calling Inkscape to perform operations on a document"""
     def __init__(self, svg_document=None):
         self.command=""
@@ -66,7 +66,7 @@ class InkscapeActionGroup:
         Can be used to pass additional arguments to Inkscape, or an initializer
         command (e.g. unlock all objects before proceeding).
         """
-        self.init_command=cmd
+        self.init_args=cmd
 
     def clear(self):
         """Clear all actions"""

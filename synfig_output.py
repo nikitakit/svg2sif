@@ -32,7 +32,7 @@ class UnsupportedException(Exception):
     """When part of an element is not supported, this exception is raised to invalidate the whole element"""
     pass
 
-class SynfigDocument():
+class SynfigDocument(object):
     """A synfig document, with commands for adding layers and layer parameters"""
     def __init__(self, width=1024, height=768, name="Synfig Animation 1"):
         self.root_canvas = etree.fromstring(
@@ -767,7 +767,6 @@ class SynfigDocument():
         """
         if filter_id not in self.filters.keys():
             raise MalformedSVGError, "Filter %s not found" % filter_id
-            return layers
 
         try:
             ret = self.filters[filter_id](self, layers, is_end)

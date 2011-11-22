@@ -49,15 +49,15 @@ except:
 class InkscapeActionGroup(object):
     """A class for calling Inkscape to perform operations on a document"""
     def __init__(self, svg_document=None):
-        self.command=""
-        self.init_args=""
-        self.has_selection=False
-        self.has_action=False
-        self.svg_document=svg_document
+        self.command = ""
+        self.init_args = ""
+        self.has_selection = False
+        self.has_action = False
+        self.svg_document = svg_document
 
     def set_svg_document(self, svg_document):
         """Set the SVG document that Inkscape will operate on"""
-        self.svg_document=svg_document
+        self.svg_document = svg_document
 
     def set_init_args(self, cmd):
         """Set the initial arguments to Inkscape subprocess
@@ -65,42 +65,42 @@ class InkscapeActionGroup(object):
         Can be used to pass additional arguments to Inkscape, or an initializer
         command (e.g. unlock all objects before proceeding).
         """
-        self.init_args=cmd
+        self.init_args = cmd
 
     def clear(self):
         """Clear all actions"""
-        self.command=""
-        self.has_action=False
-        self.has_selection=False
+        self.command = ""
+        self.has_action = False
+        self.has_selection = False
 
-    def verb(self,verb):
+    def verb(self, verb):
         """Run an Inkscape verb
 
         For a list of verbs, run `inkscape --verb-list`
         """
         if self.has_selection:
-            self.command+="--verb=%s " % (verb)
+            self.command += "--verb=%s " % (verb)
 
             if not self.has_action:
-                self.has_action=True
+                self.has_action = True
 
-    def select_id(self,object_id):
+    def select_id(self, object_id):
         """Select object with given id"""
-        self.command+="--select='%s' " % (object_id)
+        self.command += "--select='%s' " % (object_id)
         if not self.has_selection:
-            self.has_selection=True
+            self.has_selection = True
 
-    def select_node(self,node):
+    def select_node(self, node):
         """Select the object represented by the SVG node
 
         Selection will fail if node has no id attribute
         """
-        node_id = node.get("id",None)
+        node_id = node.get("id", None)
         if node_id is None:
             raise MalformedSVGError, "Node has no id"
         self.select_id(node_id)
 
-    def select_nodes(self,nodes):
+    def select_nodes(self, nodes):
         """Select objects represented by SVG nodes
 
         Selection will fail if any node has no id attribute
@@ -108,12 +108,12 @@ class InkscapeActionGroup(object):
         for node in nodes:
             self.select_node(node)
 
-    def select_xpath(self,xpath, namespaces=NSS):
+    def select_xpath(self, xpath, namespaces=NSS):
         """Select objects matching a given XPath expression
 
         Selection will fail if any matching node has no id attribute
         """
-        nodes=self.svg_document.xpath(xpath, namespaces=namespaces)
+        nodes = self.svg_document.xpath(xpath, namespaces=namespaces)
 
         self.select_nodes(nodes)
 
@@ -121,9 +121,9 @@ class InkscapeActionGroup(object):
         """Deselect all objects"""
         if self.has_selection:
             self.verb("EditDeselect")
-            self.has_selection=False
+            self.has_selection = False
 
-    def run_file(self,filename):
+    def run_file(self, filename):
         """Run the actions on a specific file"""
         if not self.has_action:
             return
@@ -135,7 +135,7 @@ class InkscapeActionGroup(object):
             f = p.stdout
             err = p.stderr
         else:
-            _,f,err = os.popen3( "inkscape %s %s" % ( filename, cmd ) )
+            _, f, err = os.popen3( "inkscape %s %s" % ( filename, cmd ) )
 
         f.close()
         err.close()
@@ -153,7 +153,7 @@ class InkscapeActionGroup(object):
         self.run_file(svgfile)
 
         # Open the resulting file
-        stream = open(svgfile,'r')
+        stream = open(svgfile, 'r')
         new_svg_doc = etree.parse(stream)
         stream.close()
 
@@ -164,15 +164,15 @@ class InkscapeActionGroup(object):
             pass
 
         # Set the current SVG document
-        self.svg_document=new_svg_doc
+        self.svg_document = new_svg_doc
 
         # Return the new document
         return new_svg_doc
 
 class SynfigExportActionGroup(InkscapeActionGroup):
     """An action group with stock commands designed for Synfig exporting"""
-    def __init__(self,svg_document=None):
-        InkscapeActionGroup.__init__(self,svg_document)
+    def __init__(self, svg_document=None):
+        InkscapeActionGroup.__init__(self, svg_document)
         self.set_init_args("--verb=UnlockAllInAllLayers")
         self.objects_to_paths()
         self.unlink_clones()
@@ -191,7 +191,7 @@ class SynfigExportActionGroup(InkscapeActionGroup):
             ]
 
         # Build an xpath command to select these nodes
-        xpath_cmd=" | ".join(["//" + np for np in non_paths])
+        xpath_cmd = " | ".join(["//" + np for np in non_paths])
 
         # Select all of these elements
         # Note: already selected elements are not deselected
@@ -213,53 +213,53 @@ class SynfigExportActionGroup(InkscapeActionGroup):
 
 def fuse_subpaths(path_node):
     """Fuse subpaths of a path. Should only be used on unstroked paths"""
-    path_d=path_node.get("d",None)
-    path=simplepath.parsePath(path_d)
+    path_d = path_node.get("d", None)
+    path = simplepath.parsePath(path_d)
 
-    if len(path)==0:
+    if len(path) == 0:
         return
 
     i = 0
-    initial_point=[ path[i][1][-2], path[i][1][-1] ]
-    return_stack=[]
-    while i<len(path):
+    initial_point = [ path[i][1][-2], path[i][1][-1] ]
+    return_stack = []
+    while i < len(path):
         # Remove any terminators: they are redundant
         if path[i][0] == "Z":
-            path.remove(["Z",[]])
+            path.remove(["Z", []])
             continue
 
         # Skip all elements that do not begin a new path
-        if i==0 or path[i][0]!="M":
-            i+=1
+        if i == 0 or path[i][0] != "M":
+            i += 1
             continue
 
         # This element begins a new path - it should be a moveto
-        assert(path[i][0]=='M')
+        assert(path[i][0] == 'M')
 
         # Swap it for a lineto
-        path[i][0]='L'
+        path[i][0] = 'L'
 
         # If the old subpath has not been closed yet, close it
         if path[i-1][1][-2] != initial_point[0] or path[i-1][1][-2] != initial_point[1]:
-            path.insert(i,['L',initial_point])
-            i+=1
+            path.insert(i, ['L', initial_point])
+            i += 1
 
         # Set the initial point of this subpath
-        initial_point=[ path[i-1][1][-2], path[i-1][1][-1] ]
+        initial_point = [ path[i-1][1][-2], path[i-1][1][-1] ]
 
         # Append this point to the return stack
         return_stack.append(initial_point)
     #end while
 
     # Now pop the entire return stack
-    while return_stack!=[]:
+    while return_stack != []:
         el = ['L', return_stack.pop()]
-        path.insert(i,el)
-        i+=1
+        path.insert(i, el)
+        i += 1
 
 
-    path_d=simplepath.formatPath(path)
-    path_node.set("d",path_d)
+    path_d = simplepath.formatPath(path)
+    path_node.set("d", path_d)
 
 def split_fill_and_stroke(path_node):
     """Split a path into two paths, one filled and one stroked
@@ -267,7 +267,7 @@ def split_fill_and_stroke(path_node):
     Returns a the list [fill, stroke], where each is the XML element of the
     fill or stroke, or None.
     """
-    style=simplestyle.parseStyle(path_node.get("style",""))
+    style = simplestyle.parseStyle(path_node.get("style", ""))
 
     # If there is only stroke or only fill, don't split anything
     if "fill" in style.keys() and style["fill"] == "none":
@@ -278,14 +278,14 @@ def split_fill_and_stroke(path_node):
     if "stroke" not in style.keys() or style["stroke"] == "none":
         return [path_node, None]
 
-    group=path_node.makeelement(addNS("g","svg"))
-    fill = etree.SubElement(group,addNS("path","svg"))
-    stroke = etree.SubElement(group,addNS("path","svg"))
+    group = path_node.makeelement(addNS("g", "svg"))
+    fill = etree.SubElement(group, addNS("path", "svg"))
+    stroke = etree.SubElement(group, addNS("path", "svg"))
 
     attribs = path_node.attrib
 
     if "d" in attribs.keys():
-        d=attribs["d"]
+        d = attribs["d"]
         del attribs["d"]
     else:
         raise AssertionError, "Cannot split stroke and fill of non-path element"
@@ -297,71 +297,71 @@ def split_fill_and_stroke(path_node):
         nodetypes = None
 
     if "id" in attribs.keys():
-        path_id=attribs["id"]
+        path_id = attribs["id"]
         del attribs["id"]
     else:
-        path_id=str(id(path_node))
+        path_id = str(id(path_node))
 
     if "style" in attribs.keys():
         del attribs["style"]
 
     if "transform" in attribs.keys():
-        transform=attribs["transform"]
+        transform = attribs["transform"]
         del attribs["transform"]
     else:
-        transform=None
+        transform = None
 
     # Pass along all remaining attributes to the group
     for attrib_name in attribs.keys():
-        group.set(attrib_name,attribs[attrib_name])
+        group.set(attrib_name, attribs[attrib_name])
 
-    group.set("id",path_id)
+    group.set("id", path_id)
 
     # Next split apart the style attribute
-    style_group={}
-    style_fill={"stroke":"none","fill":"#000000"}
-    style_stroke={"fill":"none","stroke":"none"}
+    style_group = {}
+    style_fill = {"stroke":"none", "fill":"#000000"}
+    style_stroke = {"fill":"none", "stroke":"none"}
 
     for key in style.keys():
         if key.startswith("fill"):
-            style_fill[key]=style[key]
+            style_fill[key] = style[key]
         elif key.startswith("stroke"):
-            style_stroke[key]=style[key]
+            style_stroke[key] = style[key]
         elif key.startswith("marker"):
-            style_stroke[key]=style[key]
+            style_stroke[key] = style[key]
         elif key.startswith("filter"):
-            style_group[key]=style[key]
+            style_group[key] = style[key]
         else:
-            style_fill[key]=style[key]
-            style_stroke[key]=style[key]
+            style_fill[key] = style[key]
+            style_stroke[key] = style[key]
 
     if len(style_group) != 0:
-        group.set("style",simplestyle.formatStyle(style_group))
+        group.set("style", simplestyle.formatStyle(style_group))
 
-    fill.set("style",simplestyle.formatStyle(style_fill))
-    stroke.set("style",simplestyle.formatStyle(style_stroke))
+    fill.set("style", simplestyle.formatStyle(style_fill))
+    stroke.set("style", simplestyle.formatStyle(style_stroke))
 
     # Finalize the two paths
-    fill.set("d",d)
-    stroke.set("d",d)
+    fill.set("d", d)
+    stroke.set("d", d)
     if nodetypes is not None:
-        fill.set(addNS("nodetypes","sodipodi"),nodetypes)
-        stroke.set(addNS("nodetypes","sodipodi"),nodetypes)
-    fill.set("id",path_id+"-fill")
-    stroke.set("id",path_id+"-stroke")
+        fill.set(addNS("nodetypes", "sodipodi"), nodetypes)
+        stroke.set(addNS("nodetypes", "sodipodi"), nodetypes)
+    fill.set("id", path_id+"-fill")
+    stroke.set("id", path_id+"-stroke")
     if transform is not None:
-        fill.set("transform",transform)
-        stroke.set("transform",transform)
+        fill.set("transform", transform)
+        stroke.set("transform", transform)
 
 
     # Replace the original node with the group
-    path_node.getparent().replace(path_node,group)
+    path_node.getparent().replace(path_node, group)
 
     return [fill, stroke]
 
 ### Object related
 
-def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]):
+def propagate_attribs(node, parent_style={}, parent_transform=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]):
     """Propagate style and transform to remove inheritance"""
 
     # Don't enter non-graphical portions of the document
@@ -373,25 +373,25 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
 
 
     # Compose the transformations
-    if node.tag == addNS("svg","svg") and node.get("viewBox"):
-        vx,vy,vw,vh=[get_dimension(x) for x in node.get("viewBox").split()]
-        dw=get_dimension(node.get("width",vw))
-        dh=get_dimension(node.get("height",vh))
-        t="translate(%f,%f) scale(%f,%f)" % (-vx, -vy, dw/vw, dh/vh)
-        this_transform=simpletransform.parseTransform(t,parent_transform)
-        this_transform=simpletransform.parseTransform(node.get("transform"),this_transform)
+    if node.tag == addNS("svg", "svg") and node.get("viewBox"):
+        vx, vy, vw, vh = [get_dimension(x) for x in node.get("viewBox").split()]
+        dw = get_dimension(node.get("width", vw))
+        dh = get_dimension(node.get("height", vh))
+        t = "translate(%f, %f) scale(%f, %f)" % (-vx, -vy, dw/vw, dh/vh)
+        this_transform = simpletransform.parseTransform(t, parent_transform)
+        this_transform = simpletransform.parseTransform(node.get("transform"), this_transform)
         del node.attrib["viewBox"]
     else:
-        this_transform=simpletransform.parseTransform(node.get("transform"), parent_transform)
+        this_transform = simpletransform.parseTransform(node.get("transform"), parent_transform)
 
     # Compose the style attribs
-    this_style=simplestyle.parseStyle(node.get("style",""))
-    remaining_style={} # Style attributes that are not propagated
+    this_style = simplestyle.parseStyle(node.get("style", ""))
+    remaining_style = {} # Style attributes that are not propagated
 
-    non_propagated=["filter"] # Filters should remain on the topmost ancestor
+    non_propagated = ["filter"] # Filters should remain on the topmost ancestor
     for key in non_propagated:
         if key in this_style.keys():
-            remaining_style[key]=this_style[key]
+            remaining_style[key] = this_style[key]
             del this_style[key]
 
     # Create a copy of the parent style, and merge this style into it
@@ -403,19 +403,19 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
     style_attribs = ["fill", "stroke"]
     for attrib in style_attribs:
         if node.get(attrib):
-            this_style[attrib]=node.get(attrib)
+            this_style[attrib] = node.get(attrib)
             del node.attrib[attrib]
 
-    if (node.tag == addNS("svg","svg")
-        or node.tag == addNS("g","svg")
-        or node.tag == addNS("a","svg")
-        or node.tag == addNS("switch","svg")):
+    if (node.tag == addNS("svg", "svg")
+        or node.tag == addNS("g", "svg")
+        or node.tag == addNS("a", "svg")
+        or node.tag == addNS("switch", "svg")):
         # Leave only non-propagating style attributes
         if len(remaining_style) == 0:
             if "style" in node.keys():
                 del node.attrib["style"]
         else:
-            node.set("style",simplestyle.formatStyle(remaining_style))
+            node.set("style", simplestyle.formatStyle(remaining_style))
 
         # Remove the transform attribute
         if "transform" in node.keys():
@@ -423,7 +423,7 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
 
         # Continue propagating on subelements
         for c in node.iterchildren():
-            propagate_attribs(c,this_style,this_transform)
+            propagate_attribs(c, this_style, this_transform)
     else:
         # This element is not a container
 
@@ -431,8 +431,8 @@ def propagate_attribs(node,parent_style={},parent_transform=[[1.0, 0.0, 0.0], [0
         this_style.update(remaining_style)
 
         # Set the element's style and transform attribs
-        node.set("style",simplestyle.formatStyle(this_style))
-        node.set("transform",simpletransform.formatTransform(this_transform))
+        node.set("style", simplestyle.formatStyle(this_style))
+        node.set("transform", simpletransform.formatTransform(this_transform))
 
 ### Style related
 
@@ -441,27 +441,27 @@ def get_dimension(s="1024"):
     if s == "":
         return 0
     try:
-        last=int(s[-1])
+        last = int(s[-1])
     except:
-        last=None
+        last = None
 
     if type(last) == int:
         return float(s)
-    elif s[-1]=="%":
+    elif s[-1] == "%":
         return 1024
-    elif s[-2:]=="px":
+    elif s[-2:] == "px":
         return float(s[:-2])
-    elif s[-2:]=="pt":
+    elif s[-2:] == "pt":
         return float(s[:-2])*1.25
-    elif s[-2:]=="em":
+    elif s[-2:] == "em":
         return float(s[:-2])*16
-    elif s[-2:]=="mm":
+    elif s[-2:] == "mm":
         return float(s[:-2])*3.54
-    elif s[-2:]=="pc":
+    elif s[-2:] == "pc":
         return float(s[:-2])*15
-    elif s[-2:]=="cm":
+    elif s[-2:] == "cm":
         return float(s[:-2])*35.43
-    elif s[-2:]=="in":
+    elif s[-2:] == "in":
         return float(s[:-2])*90
     else:
         return 1024
@@ -472,14 +472,14 @@ class SynfigPrep(inkex.Effect):
         """Transform document in preparation for exporting it into the Synfig format"""
 
         a = SynfigExportActionGroup(self.document)
-        self.document=a.run_document()
+        self.document = a.run_document()
 
         # Remove inheritance of attributes
         propagate_attribs(self.document.getroot())
 
         # Fuse multiple subpaths in fills
         for node in self.document.xpath('//svg:path', namespaces=NSS):
-            if node.get("d","").lower().count("m") > 1:
+            if node.get("d", "").lower().count("m") > 1:
                 # There are multiple subpaths
                 fill = split_fill_and_stroke(node)[0]
                 if fill is not None:

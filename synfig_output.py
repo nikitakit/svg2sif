@@ -25,9 +25,11 @@ import uuid
 from copy import deepcopy
 
 import inkex
+from inkex import NSS, addNS, etree, errormsg
+import simplepath, simplestyle, simpletransform
 import cubicsuperpath
 
-from synfig_prepare import *
+from synfig_prepare import SynfigPrep, MalformedSVGError, get_dimension
 import synfig_fileformat as sif
 
 ###### Utility Classes ####################################

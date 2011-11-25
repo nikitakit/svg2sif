@@ -129,6 +129,7 @@ class InkscapeActionGroup(object):
             return
 
         cmd = self.init_args + " " + self.command + "--verb=FileSave --verb=FileQuit"
+
         if bsubprocess:
             p = Popen('inkscape "%s" %s' % (filename, cmd), shell=True, stdout=PIPE, stderr=PIPE)
             rc = p.wait()
@@ -179,6 +180,12 @@ class SynfigExportActionGroup(InkscapeActionGroup):
 
     def objects_to_paths(self):
         """Convert unsupported objects to paths"""
+        # Flow roots contain rectangles inside them, so they need to be
+        # converted to paths separately from other shapes
+        self.select_xpath("//svg:flowRoot", namespaces=NSS)
+        self.verb("ObjectToPath")
+        self.deselect()
+
         non_paths = [
             "svg:rect",
             "svg:circle",
@@ -186,7 +193,6 @@ class SynfigExportActionGroup(InkscapeActionGroup):
             "svg:line",
             "svg:polyline",
             "svg:polygon",
-            "svg:flowRoot",
             "svg:text"
             ]
 
